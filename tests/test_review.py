@@ -46,3 +46,45 @@ def test_cancel_between_comparisons(tmp_path, monkeypatch):
     records = json.loads((tmp_path/'comparison-report.json').read_text())
     assert records[0]['page_count_check'] == 'passed'
     assert records[1]['status'] == 'cancelled'
+
+
+def test_in_memory_review_uses_numbered_output_and_separate_folder(tmp_path, monkeypatch):
+    infos = prepare(tmp_path)
+    records = json.loads((tmp_path/'pagethaw-report.json').read_text())['files']
+    for info, record in zip(infos, records):
+        numbered = tmp_path/(info.path.stem+' (2).docx')
+        info.path.with_suffix('.docx').rename(numbered)
+        record.update(source=str(info.path), output=numbered.name)
+    (tmp_path/'pagethaw-report.json').unlink()
+    before = {p.name: p.read_bytes() for p in tmp_path.iterdir() if p.is_file()}
+    seen = []
+    def fake_export(docx, output):
+        seen.append(docx.name)
+        Path(output).mkdir(parents=True)
+        return next(info.path for info in infos if docx.stem == info.path.stem+' (2)')
+    monkeypatch.setattr(word_review, 'export_word', fake_export)
+    review = tmp_path/'separate-review'
+    word_review.review_batch(infos, tmp_path, records=records, review_output=review)
+    assert seen == [r['output'] for r in records]
+    assert all(r['page_count_check'] == 'passed' for r in json.loads((review/'comparison-report.json').read_text()))
+    assert all((tmp_path/name).read_bytes() == value for name, value in before.items())
+    assert not (tmp_path/'pagethaw-report.json').exists()
+    assert not (tmp_path/'comparison-report.json').exists()
+
+
+def test_comparison_retains_each_duplicate_source_occurrence(tmp_path, monkeypatch):
+    info = prepare(tmp_path)[0]
+    original = info.path.with_suffix('.docx')
+    second = tmp_path/(info.path.stem+' (2).docx')
+    second.write_bytes(b'second converted output')
+    records = [{'input': info.path.name, 'source': str(info.path), 'output': path.name,
+                'content_check': 'passed', 'input_sha256': digest(info.path), 'sha256': digest(path)}
+               for path in (original, second)]
+    seen = []
+    def fake_export(docx, output):
+        seen.append(docx.name)
+        Path(output).mkdir(parents=True)
+        return info.path
+    monkeypatch.setattr(word_review, 'export_word', fake_export)
+    word_review.review_batch([info, info], tmp_path, records=records, review_output=tmp_path/'review')
+    assert seen == [original.name, second.name]

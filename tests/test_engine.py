@@ -113,17 +113,34 @@ def test_existing_output_unchanged(tmp_path, face):
     assert target.read_bytes() == b'keep this'
 
 
-def test_duplicate_names_rejected_before_conversion(tmp_path, face):
+def test_duplicate_names_get_distinct_outputs_without_reports(tmp_path, face):
     info = inspect_pdf(make_pdf(tmp_path, face))
-    with pytest.raises(FileExistsError, match='Duplicate'):
-        convert_batch([info, info], tmp_path/'out', mapping(info, face))
-    assert not list((tmp_path/'out').glob('*.docx'))
+    output = tmp_path/'out'
+    results = convert_batch([info, info], output, mapping(info, face))
+    assert [r['output'] for r in results] == ['sample.docx', 'sample (2).docx']
+    assert all(r['content_check'] == 'passed' for r in results)
+    assert {p.name for p in output.iterdir()} == {'sample.docx', 'sample (2).docx'}
+
+
+def test_repeated_batch_preserves_old_files_and_ignores_legacy_report(tmp_path, face):
+    info = inspect_pdf(make_pdf(tmp_path, face))
+    output = tmp_path/'out'
+    output.mkdir()
+    (output/'SAMPLE.docx').write_bytes(b'previous document')
+    (output/'pagethaw-report.json').write_text('previous report')
+    (output/'sample (2).partial.docx').write_bytes(b'previous partial file')
+    before = {p.name: p.read_bytes() for p in output.iterdir()}
+    results = convert_batch([info], output, mapping(info, face))
+    assert results[0]['output'] == 'sample (3).docx'
+    assert results[0]['content_check'] == 'passed'
+    assert all((output/name).read_bytes() == data for name, data in before.items())
+    assert set(p.name for p in output.iterdir()) == set(before) | {'sample (3).docx'}
 
 
 def test_batch_continues_independent_valid_file(tmp_path, face):
     valid = inspect_pdf(make_pdf(tmp_path, face))
     invalid = inspect_pdf(make_pdf(tmp_path, face, name='hidden.pdf', render_mode=3))
-    results = convert_batch([invalid, valid], tmp_path/'out', mapping(valid, face))
+    results = convert_batch([invalid, valid], tmp_path/'out', mapping(valid, face), write_report=True)
     assert results[0]['status'] == 'failed'
     assert results[1]['content_check'] == 'passed'
     assert json.loads((tmp_path/'out'/'pagethaw-report.json').read_text())['visual_review'].startswith('not run')

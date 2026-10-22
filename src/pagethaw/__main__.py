@@ -22,10 +22,17 @@ def main():
     parser.add_argument('--rules', action='store_true', help='Convert standalone runs of 3+ underscores into vector lines')
     parser.add_argument('--dpi', type=int, choices=[96, 144, 192], default=144)
     parser.add_argument('--self-test', type=Path, metavar='NEW_FOLDER', help='Run a synthetic portable-runtime smoke test and write its report')
+    parser.add_argument('--self-test-word', action='store_true', help='Include desktop Word export in --self-test')
+    parser.add_argument('--export-notices', type=Path, metavar='NEW_FOLDER', help='Export bundled licenses, source references and documentation')
+    parser.add_argument('--report', action='store_true', help='Also save a JSON conversion report (optional)')
     args = parser.parse_args()
+    if args.export_notices:
+        from .notices import export_notices
+        export_notices(args.export_notices)
+        return 0
     if args.self_test:
         from .smoke import run
-        run(args.self_test)
+        run(args.self_test, compare=args.self_test_word)
         return 0
     from .engine import inspect_pdf, convert_batch
     from .fonts import installed_fonts, read_font
@@ -54,7 +61,7 @@ def main():
             if not matches:
                 raise ValueError('Mapped font is not registered with Windows: '+candidate.full_name)
             mapping[name] = matches[0]
-    records = convert_batch(infos, args.output, mapping, rules=args.rules, dpi=args.dpi)
+    records = convert_batch(infos, args.output, mapping, rules=args.rules, dpi=args.dpi, write_report=args.report)
     print(json.dumps(records, ensure_ascii=False, indent=2))
     return int(any(r.get('content_check') != 'passed' for r in records))
 

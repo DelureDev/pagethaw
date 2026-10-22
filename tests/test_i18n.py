@@ -123,6 +123,7 @@ def test_switch_is_disabled_during_job_and_returns_after_completion(app):
 
 def test_language_switch_does_not_restore_stale_fonts_after_file_change(app, tmp_path, monkeypatch):
     app.font_chars = {'PreviousFont': 'Test'}
+    monkeypatch.setattr(app, 'scan', lambda: None)
     monkeypatch.setattr(gui.filedialog, 'askopenfilenames', lambda **kwargs: (str(tmp_path/'another.pdf'),))
     app.add_files()
     app.switch_language()
@@ -130,3 +131,66 @@ def test_language_switch_does_not_restore_stale_fonts_after_file_change(app, tmp
     assert app.mapping == {}
     assert app.font_chars == {}
     assert app.font_tree.get_children() == ()
+
+
+def test_compact_panels_and_last_conversion_survive_language_switch(app):
+    app.fonts_expanded = False
+    app.options_expanded = False
+    last = (Path('output'), [], [])
+    app.last_conversion = last
+    app.switch_language()
+    assert not app.font_frame.winfo_manager()
+    assert not app.options_frame.winfo_manager()
+    app.toggle_fonts()
+    app.toggle_options()
+    app.switch_language()
+    assert app.font_frame.winfo_manager() == 'grid'
+    assert app.options_frame.winfo_manager() == 'grid'
+    assert app.last_conversion is last
+
+
+def test_adding_files_starts_scan(app, tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(app, 'scan', lambda: calls.append('scan'))
+    monkeypatch.setattr(gui.filedialog, 'askopenfilenames', lambda **kwargs: (str(tmp_path/'new.pdf'),))
+    app.add_files()
+    assert calls == ['scan']
+
+
+def test_gui_auto_scan_and_repeat_conversion_only_write_docx(app, tmp_path, monkeypatch):
+    import os
+    import pymupdf
+    source = tmp_path/'form.pdf'
+    font = Path(os.environ.get('WINDIR', 'C:/Windows'))/'Fonts/arial.ttf'
+    with pymupdf.open() as pdf:
+        page = pdf.new_page()
+        page.insert_font(fontname='fixture', fontfile=str(font))
+        page.insert_text((35, 60), 'Name: ______ / Пример', fontname='fixture', fontsize=12)
+        pdf.save(source)
+    app.paths = []
+    app.output.set(str(tmp_path/'chosen-folder'))
+    monkeypatch.setattr(gui.filedialog, 'askopenfilenames', lambda **kwargs: (str(source),))
+    def unexpected_dialog(*args, **kwargs):
+        pytest.fail(f'Unexpected blocking dialog: {args}')
+    monkeypatch.setattr(gui.messagebox, 'showerror', unexpected_dialog)
+    monkeypatch.setattr(gui.messagebox, 'showwarning', unexpected_dialog)
+    def wait_for_job():
+        deadline = time.monotonic()+20
+        while app.busy and time.monotonic() < deadline:
+            app.update()
+            time.sleep(.01)
+        assert not app.busy
+    app.add_files()
+    wait_for_job()
+    assert app.infos[0].error == ''
+    assert set(app.font_chars) <= app.mapping.keys()
+    app.convert()
+    wait_for_job()
+    first = (tmp_path/'chosen-folder/form.docx').read_bytes()
+    app.convert()
+    wait_for_job()
+    output = tmp_path/'chosen-folder'
+    assert {p.name for p in output.iterdir()} == {'form.docx', 'form (2).docx'}
+    assert (output/'form.docx').read_bytes() == first
+    assert app.last_conversion[0] == output
+    assert app.last_conversion[2][0]['output'] == 'form (2).docx'

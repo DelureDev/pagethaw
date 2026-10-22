@@ -7,7 +7,12 @@ from pagethaw.__main__ import main
 try:
     raise SystemExit(main())
 except Exception as exc:
-    if sys.stderr:
+    if '--self-test' in sys.argv:
+        from pathlib import Path
+        folder = Path(sys.argv[sys.argv.index('--self-test')+1])
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder/'self-test-error.txt').write_text(traceback.format_exc(), encoding='utf-8')
+    elif sys.stderr:
         traceback.print_exc()
     else:
         import tkinter as tk

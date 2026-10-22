@@ -237,21 +237,26 @@ def digest(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def convert_batch(infos, output, mapping, *, rules=False, dpi=144, cancel=None, progress=None):
+def convert_batch(infos, output, mapping, *, rules=False, dpi=144, cancel=None, progress=None, write_report=False):
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
     report = output / 'pagethaw-report.json'
-    if report.exists():
+    if write_report and report.exists():
         raise FileExistsError('Choose a new output folder; this folder already contains a PageThaw report.')
     records = []
-    reserved = set()
+    reserved = {p.name.casefold() for p in output.iterdir()}
+    names = []
     for info in infos:
         name = info.path.stem+'.docx'
-        if name.casefold() in reserved or (output/name).exists():
-            raise FileExistsError('Duplicate or existing output name: '+name+'. Choose separate output folders.')
+        number = 2
+        while name.casefold() in reserved or Path(name).with_suffix('.partial.docx').name.casefold() in reserved:
+            name = f'{info.path.stem} ({number}).docx'
+            number += 1
         reserved.add(name.casefold())
+        reserved.add(Path(name).with_suffix('.partial.docx').name.casefold())
+        names.append(name)
     for index, info in enumerate(infos):
-        record = {'input': info.path.name, 'output': info.path.stem+'.docx'}
+        record = {'input': info.path.name, 'source': str(info.path), 'output': names[index]}
         record['input_sha256'] = info.sha256
         records.append(record)
         if cancel and cancel.is_set():
@@ -263,8 +268,9 @@ def convert_batch(infos, output, mapping, *, rules=False, dpi=144, cancel=None, 
                 record.update(status='cancelled', error=str(exc))
             except Exception as exc:
                 record.update(status='failed', error=str(exc))
-        report.write_text(json.dumps({'version': 1, 'files': records,
-            'visual_review': 'not run; open outputs in Word and compare every page'}, ensure_ascii=False, indent=2), encoding='utf-8')
+        if write_report:
+            report.write_text(json.dumps({'version': 1, 'files': records,
+                'visual_review': 'not run; open outputs in Word and compare every page'}, ensure_ascii=False, indent=2), encoding='utf-8')
         if progress:
             progress(index+1, len(infos), record)
     return records

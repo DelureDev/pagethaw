@@ -18,13 +18,17 @@ Windows 10/11 x64 · Free & open source · English / Русский
 
 ## Start in 4 steps
 
-1. **Download & extract** the `PageThaw-…-windows-x64.zip` from the latest release.
-   Extract the whole folder, then open **PageThaw.exe**. Keep `_internal` beside it.
-2. **Add your PDFs** and click **Scan files & fonts**.
-3. **Check the fonts.** If one is missing, add your own `.ttf` / `.otf` or approve
+1. **Download and open** `PageThaw-…-windows-x64.exe` from the latest release.
+   One file. No installation or unpacking.
+2. **Add your PDFs.** PageThaw checks the files and fonts automatically.
+3. **Choose a font if asked.** Add your own `.ttf` / `.otf` or approve
    an installed replacement. Nothing is silently substituted.
-4. **Choose a new output folder** and click **Convert to Word**. Open the `.docx`
+4. **Choose an output folder** and click **Convert to Word**. Open the `.docx`
    files in desktop Word and review every page.
+
+Your folder gets **only Word files**. Convert again to the same folder any time;
+existing files stay untouched and new copies get names such as `form (2).docx`.
+Font details and extra settings are available under **Fonts…** and **Options…**.
 
 **No account, Python installation or Word is needed to convert.** All processing
 happens on your computer. Use the **Русский / English** button at the top right
@@ -34,7 +38,7 @@ to switch the interface; your choice is remembered.
 
 | Feature | How it helps |
 | :--- | :--- |
-| Batch conversion | Convert several PDFs in one run, with a report for each file. |
+| Batch conversion | Convert several PDFs in one run; see their status in the app. |
 | Editable page layout | Text stays in positioned boxes; logos and borders stay in place. |
 | Font choices | Match regular, bold and italic faces, or approve a substitute. |
 | Form blank lines | Optionally turn underscore blanks into continuous lines. |
@@ -46,6 +50,9 @@ to switch the interface; your choice is remembered.
 ![PageThaw — RU](docs/images/app-ru.jpg)
 
 </details>
+
+Prefer a folder-based app? The release also includes a ZIP. Extract the
+whole folder and keep `_internal` beside its `PageThaw.exe`.
 
 ## Before you convert
 

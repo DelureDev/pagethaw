@@ -3,8 +3,9 @@
 PageThaw uses PyMuPDF/MuPDF under AGPL-3.0, python-docx under MIT, fontTools under
 MIT, Pillow under MIT-CMU, and Python/Tcl/Tk under their respective licenses.
 PyInstaller's bootloader exception permits distribution of the generated bundle
-under the application's license. Dependency notices are included in each portable
-release's `licenses/` folder.
+under the application's license. The ZIP includes dependency notices in its
+`licenses/` folder. The single EXE embeds the same notices; extract them with
+`--export-notices NEW_FOLDER` (see [the guide](docs/USAGE.md)).
 
 Exact installed versions and corresponding source-download URLs are written into
 `DEPENDENCY_SOURCES.json` during the build. Source distributions are available at

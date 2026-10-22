@@ -11,21 +11,23 @@ This first release targets selectable, horizontal text on consistent-sized pages
 Word desktop is the reference viewer. OCR, rotated text and interactive PDF forms
 are outside the first release. Conversion itself does not require Word.
 
-Status: v0.2.0 implementation and verification complete. The portable package
-passed its relocation test and hosted Windows CI passed. The English/Russian switch retains
-batch state and saves the preference locally. Both READMEs are shorter and linked;
-technical documentation is in docs/USAGE.md. Local tests (39), native app language
-switch/layout inspection and independent review passed. Converter/exporter code
-is unchanged; no new Word rendering comparison was needed. Both published
-READMEs were inspected in the browser. Release asset checksums are supplied with
-the download; detailed local build and upload evidence stays in the private archive.
+Status: v0.3.0 implementation and local verification complete. Owner approved a single EXE as the main
+download with a lean ZIP alternative, removing unused AI layout/ONNX/NumPy payloads.
+Latest clarification: selected output folder must contain only Word files, no
+automatic reports or batch subfolders; repeat conversion should work with numbered
+filenames that preserve existing files. Compact UI with automatic scans and
+collapsible fonts/options; comparison remains explicit and writes to a separate
+temporary folder. Local tests pass (46), both relocated builds convert correctly,
+and the single-file Word export was visually checked on both pages. Independent
+review passed after correcting duplicate-source comparison selection. Final
+release asset checks and hosted CI are recorded with the release.
 
 Repository: https://github.com/DelureDev/pagethaw
 Release: https://github.com/DelureDev/pagethaw/releases/latest
 
 Public deliverables: source, README, AGPL license, Windows checks workflow and
-portable ZIP with executable, runtime, dependency licenses/source references and
-checksum. The executable belongs in Releases rather than Git source history.
+single EXE plus optional portable ZIP, embedded dependency licenses/source references
+and checksums. Binaries belong in Releases rather than Git source history.
 
 Private working material is archived locally and ignored by Git. The retained
 private conversion skill's machine profile was updated to its archive paths.
@@ -43,3 +45,9 @@ v0.2.0 reused that reviewer for state retention, font consent and packaging. Rev
 passed after the two findings were fixed and a stale-font-state regression was
 also covered. The native app screenshot in docs/images/app-ru.jpg was captured
 from the local v0.2.0 build with an empty file list; it contains no user documents.
+
+v0.3.0 review used routing_reviewer (native role configured gpt-6.1-sol/high),
+read-only; lead remained the only writer, with no fallback. The preview was replaced
+with the empty compact v0.3.0 Russian interface. Original/private user documents,
+fonts and open Word sessions were not changed. The single-file build embeds notices
+accessible with --export-notices; both formats share the same dependency analysis.

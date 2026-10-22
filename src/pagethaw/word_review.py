@@ -1,6 +1,7 @@
 """Optional desktop Word export, isolated by process identity and a deadline."""
 from pathlib import Path
 import json
+import os
 import subprocess
 import sys
 
@@ -27,8 +28,11 @@ def export_word(docx, output, timeout=60):
     if state.exists() or pdf.exists():
         raise FileExistsError('Comparison already exists. Choose a new output batch.')
     scripts = Path(__file__).parent
+    powershell = Path(os.environ.get('SystemRoot', 'C:/Windows'))/'System32/WindowsPowerShell/v1.0/powershell.exe'
+    if not powershell.is_file():
+        raise RuntimeError('Windows PowerShell is unavailable. Conversion works without Word comparison.')
     with (output/'worker.log').open('wb') as log:
-        worker = subprocess.Popen(['powershell.exe', '-NoProfile', '-File', str(scripts/'word_worker.ps1'),
+        worker = subprocess.Popen([str(powershell), '-NoProfile', '-File', str(scripts/'word_worker.ps1'),
             '-Docx', str(Path(docx).resolve()), '-Pdf', str(pdf.resolve()), '-State', str(state.resolve()), '-Method', 'saveas'],
             stdout=log, stderr=subprocess.STDOUT, creationflags=subprocess.CREATE_NO_WINDOW)
         try:
@@ -41,7 +45,7 @@ def export_word(docx, output, timeout=60):
             (output/'failure.txt').write_text(error, encoding='utf-8')
             if detail.get('word_pid') and detail.get('word_started'):
                 try:
-                    cleanup = subprocess.run(['powershell.exe', '-NoProfile', '-File', str(scripts/'stop_owned_word.ps1'),
+                    cleanup = subprocess.run([str(powershell), '-NoProfile', '-File', str(scripts/'stop_owned_word.ps1'),
                         '-State', str(state.resolve())], capture_output=True, timeout=15, creationflags=subprocess.CREATE_NO_WINDOW)
                     if cleanup.returncode:
                         error += ' Owned-process cleanup failed; inspect worker.json.'
@@ -59,34 +63,43 @@ def export_word(docx, output, timeout=60):
     return pdf
 
 
-def review_batch(infos, output, cancel=None, progress=None):
-    report_path = Path(output)/'comparison-report.json'
+def review_batch(infos, output, cancel=None, progress=None, *, records=None, review_output=None):
+    review_output = Path(review_output) if review_output is not None else Path(output)
+    review_output.mkdir(parents=True, exist_ok=True)
+    report_path = review_output/'comparison-report.json'
     if report_path.exists():
         raise FileExistsError('This batch already has a comparison report. Preserve it and choose a new batch.')
     results = []
-    conversion = json.loads((Path(output)/'pagethaw-report.json').read_text(encoding='utf-8'))
-    accepted = {r['input']: r for r in conversion['files'] if r.get('content_check') == 'passed'}
-    eligible = [info for info in infos if info.path.name in accepted]
+    if records is None:
+        records = json.loads((Path(output)/'pagethaw-report.json').read_text(encoding='utf-8'))['files']
+    accepted = {}
+    for record in records:
+        if record.get('content_check') == 'passed':
+            accepted.setdefault(record.get('source', record['input']), []).append(record)
+    eligible = []
+    for info in infos:
+        matches = accepted.get(str(info.path)) or accepted.get(info.path.name)
+        if matches:
+            eligible.append((info, matches.pop(0)))
     if not eligible:
         report_path.write_text('[]', encoding='utf-8')
         return 'No successfully converted documents are available for comparison.'
-    for index, info in enumerate(eligible, 1):
+    for index, (info, record) in enumerate(eligible, 1):
         if cancel and cancel.is_set():
             completed = len(results)
             results.extend({'input': item.path.name, 'status': 'cancelled', 'visual_review': 'not run'}
-                           for item in eligible[index-1:])
+                           for item, _ in eligible[index-1:])
             report_path.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding='utf-8')
             return f'Comparison cancelled: {completed} of {len(eligible)} documents exported. Remaining comparisons were not run.'
         result = {'input': info.path.name, 'status': 'failed', 'visual_review': 'not run'}
         results.append(result)
         try:
-            record = accepted[info.path.name]
-            docx = Path(output)/(info.path.stem+'.docx')
+            docx = Path(output)/record.get('output', info.path.stem+'.docx')
             if digest(info.path) != record.get('input_sha256') or digest(docx) != record.get('sha256'):
                 raise ValueError('Source or DOCX changed since conversion. Convert a fresh batch before comparing.')
             if progress:
                 progress(f'Word comparison: {info.path.name}')
-            directory = Path(output)/'comparisons'/str(index)
+            directory = review_output/'comparisons'/str(index)
             rendered = export_word(docx, directory)
             with pymupdf.open(info.path) as source, pymupdf.open(rendered) as doc:
                 pages = len(source)

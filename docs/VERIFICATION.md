@@ -1,5 +1,38 @@
 # Release verification
 
+## v0.3.0 — single executable and simpler conversion
+
+Checks performed on Windows on 2026-10-22:
+
+- **Passed:** 46 tests, including repeat conversions into the same folder,
+  preservation of existing documents and legacy reports, numbered duplicate
+  filenames, no report files by default, and comparison of every duplicate output.
+- **Passed:** actual Tk app workflow adds a synthetic PDF, scans fonts, converts
+  twice and leaves only two DOCX files in the chosen folder. Language switching
+  retains panel state, selections, options and conversion records.
+- **Passed:** standalone EXE and extracted ZIP copied outside the repository to
+  a path with spaces and Cyrillic. Each completed a two-page conversion and a
+  repeated conversion with developer Python variables removed and PATH restricted
+  to Windows directories. Existing outputs remained unchanged; no report files
+  were created in the conversion folder.
+- **Passed:** single-EXE Word comparison using the absolute Windows PowerShell
+  path. Both original/export image pairs were visually inspected; page counts,
+  text, rules and borders were preserved, with minor baseline differences.
+- **Passed:** compact native app displayed in English and Russian. Missing fonts
+  remain an explicit user decision; optional panels retain the same controls.
+- **Passed:** embedded notices extracted from the single EXE. Both payloads were
+  audited for private documents/fonts and excluded AI modules/models. No NumPy,
+  ONNX Runtime or PyMuPDF layout-model payload is bundled.
+- **Passed:** independent read-only review after fixing duplicate-source comparison
+  selection. Full build and upload evidence is retained with the release process.
+
+**Not run:** clean Windows VM, physical printing, Word web/mobile or LibreOffice.
+The app remains unsigned. Restricted-PATH relocation is not a clean-machine test.
+
+The GUI writes only DOCX files to the selected output folder. Optional comparison
+creates diagnostics in a separate temporary folder. CLI `--report` remains an
+explicit opt-in for automation; it is not enabled by the GUI.
+
 ## v0.2.0 — English / Russian interface
 
 Checks performed on Windows on 2026-10-22:

@@ -7,7 +7,7 @@ from .engine import inspect_pdf, convert_batch
 from .fonts import installed_fonts
 
 
-def run(folder):
+def run(folder, compare=False):
     folder = Path(folder).resolve()
     folder.mkdir(parents=True, exist_ok=False)
     faces = installed_fonts()
@@ -27,7 +27,23 @@ def run(folder):
         pdf.save(source)
     info = inspect_pdf(source)
     assert not info.error, info.error
-    records = convert_batch([info], folder/'output', {name: face for name in info.fonts})
+    output = folder/'output'
+    records = convert_batch([info], output, {name: face for name in info.fonts})
     assert records[0].get('content_check') == 'passed', records
-    (folder/'smoke-result.json').write_text(json.dumps({'status': 'passed', 'pages': 2, 'records': records}, indent=2), encoding='utf-8')
+    original = (output/records[0]['output']).read_bytes()
+    repeated = convert_batch([info], output, {name: face for name in info.fonts}, rules=True)
+    assert repeated[0].get('content_check') == 'passed', repeated
+    assert repeated[0]['output'] == 'synthetic-form (2).docx'
+    assert (output/records[0]['output']).read_bytes() == original
+    assert {p.name for p in output.iterdir()} == {'synthetic-form.docx', 'synthetic-form (2).docx'}
+    comparison = 'not run'
+    if compare:
+        from .word_review import review_batch
+        review_batch([info], output, records=repeated, review_output=folder/'review')
+        results = json.loads((folder/'review/comparison-report.json').read_text(encoding='utf-8'))
+        assert results[0].get('page_count_check') == 'passed', results
+        assert len(list((folder/'review/comparisons/1').glob('page-*.png'))) == 2
+        comparison = 'exported; visual inspection required'
+    (folder/'smoke-result.json').write_text(json.dumps({'status': 'passed', 'pages': 2, 'records': records,
+        'repeat_conversion': 'passed', 'output_only_docx': 'passed', 'comparison': comparison}, indent=2), encoding='utf-8')
     return records

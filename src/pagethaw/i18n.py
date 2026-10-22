@@ -9,6 +9,12 @@ import tempfile
 
 
 RU = {
+    'Windows PowerShell is unavailable. Conversion works without Word comparison.': 'Windows PowerShell недоступен. Конвертация работает без сравнения через Word.',
+    'Fonts…': 'Шрифты…',
+    'Options…': 'Настройки…',
+    'Save Word files to': 'Сохранить файлы Word в',
+    'Browse…': 'Выбрать…',
+    '{passed} converted; {failed} failed; {cancelled} cancelled. Review the Word files.': 'Готово: {passed}; ошибок: {failed}; отменено: {cancelled}. Проверьте файлы Word.',
     'PageThaw — PDF to Word': 'PageThaw — PDF в Word',
     'PDF forms → editable Word documents': 'PDF-бланки → редактируемые документы Word',
     'Preserve the page. Choose the fonts. Convert locally.': 'Сохраняйте макет. Выбирайте шрифты. Конвертируйте на своём компьютере.',

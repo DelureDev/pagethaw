@@ -12,9 +12,27 @@
   three or more underscores into continuous lines; identifiers such as `account_id`
   and `a___b` stay editable text.
 
-The app checks the generated DOCX text before accepting it. Each batch includes
-`pagethaw-report.json` with conversion outcomes and failures. A content check is
-**not** a visual-quality guarantee.
+The app checks the generated DOCX text before accepting it. The selected output
+folder receives only Word files; progress and failures appear in the app. Reusing
+a folder is supported: existing files stay untouched and additional copies get
+numbered names such as `form (2).docx`. A content check is **not** a visual-quality
+guarantee.
+
+## Download and run
+
+Open the single `PageThaw-…-windows-x64.exe` from the latest release. It includes
+its runtime and needs no installer or adjacent support folder. Startup extracts
+runtime files to Windows' temporary directory and can take a few seconds. Language
+preferences are stored separately in your Windows account, not beside the EXE.
+
+The optional ZIP contains a folder edition with the same features. Extract it
+fully and keep `_internal` beside `PageThaw.exe`. Both builds omit optional AI
+layout models, ONNX Runtime and NumPy; the converter uses PDF text coordinates.
+This packaging does not add OCR or AI-based table reconstruction.
+
+Add PDFs to scan automatically. **Fonts…** shows the mappings and rescan button;
+the font panel opens automatically when a font needs your choice. **Options…**
+contains the form-line option, graphics resolution and optional Word comparison.
 
 ## Font handling
 
@@ -36,9 +54,12 @@ supported in this release; use individual static faces.
 
 ## Comparing with the PDF
 
-If desktop Microsoft Word is installed, **Compare pages (Word)** exports the DOCX
-through a separate Word instance and creates original/export page pairs under
-`comparisons/`. Page counts are checked; you inspect the images yourself.
+If desktop Microsoft Word is installed, **Options… → Compare pages (Word)**
+exports the latest completed conversion through a separate Word instance and
+opens original/export page pairs in a separate temporary folder. This explicit
+diagnostic action does not add images, PDFs or reports to your Word output folder.
+Page counts are checked; you inspect the images yourself. Conversion records are
+kept for the current app session; convert again after restarting to compare.
 
 The exporter has a 60-second deadline per document and only cleans up a process
 whose identity it recorded. It does not attach to your existing Word session.
@@ -61,7 +82,7 @@ same scale before changing fonts merely to compensate for screen rendering.
   LibreOffice have not been verified for this positioned layout.
 - A failed file is reported separately; other supported files can still convert.
   Existing output files are never intentionally overwritten. Duplicate filenames
-  must be converted to separate output folders.
+  receive numbered suffixes automatically.
 - Cancel is cooperative between pages/files. Word comparison may take up to its
   timeout to finish the current export.
 
@@ -103,6 +124,10 @@ must already be registered with Windows. Add `--rules` for form blank lines or
 `--dpi 192` for higher-resolution backgrounds. The GUI is the easiest path for
 adding fonts and creating Word comparison images.
 
+The command line also produces only DOCX files by default. Add `--report` only if
+you want `pagethaw-report.json` for automation; this optional mode requires a folder
+without an existing report. The GUI never enables report files.
+
 ## Build and test
 
 ```powershell
@@ -110,8 +135,18 @@ python -m pytest -q
 python scripts/build_portable.py
 ```
 
-The build creates a portable folder and ZIP under `dist/`, plus dependency notices
-and source references. The executable bundles its Python runtime. Release binaries
+The build creates a single EXE and a folder ZIP under `dist/<version>/`, plus
+checksums. Both formats share one PyInstaller dependency analysis. Dependency
+notices and source references are embedded in both, and exposed beside the
+launcher in the ZIP. To extract them from the single EXE:
+
+```powershell
+.\PageThaw-0.3.0-windows-x64.exe --export-notices ".\PageThaw-notices"
+```
+
+Choose a new destination; existing files are never replaced. The build audits
+both payloads for private fonts/documents and excluded AI dependencies.
+Release binaries
 are assets on GitHub Releases, not files in Git history. Only synthetic fixtures
 are used in the public tests; Windows Arial is read from the test machine and is
 never bundled.
@@ -126,7 +161,7 @@ See [LICENSE](../LICENSE) and [THIRD_PARTY.md](../THIRD_PARTY.md).
 
 No original documents, private conversion outputs or third-party font files are
 distributed in this repository. The app has no telemetry or automatic network
-requests. Reports and generated documents stay in the output folder you choose.
+requests. Generated Word documents stay in the output folder you choose.
 
 When reporting a bug, use a synthetic or redacted example. Do not upload private
 documents or fonts you do not have permission to redistribute.

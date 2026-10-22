@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 import os
 import queue
 import threading
+import tempfile
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
@@ -18,8 +19,8 @@ class App(tk.Tk):
         super().__init__()
         self.language = tk.StringVar(value=load_language())
         self.title(self.t('PageThaw — PDF to Word'))
-        self.geometry(f'1060x{min(940, self.winfo_screenheight()-80)}')
-        self.minsize(860, 650)
+        self.geometry(f'880x{min(600, self.winfo_screenheight()-80)}')
+        self.minsize(780, 500)
         self.configure(background='#f1f5f9')
         self.paths = []
         self.infos = []
@@ -27,6 +28,9 @@ class App(tk.Tk):
         self.mapping = {}
         self.font_chars = {}
         self.file_results = {}
+        self.fonts_expanded = False
+        self.options_expanded = False
+        self.last_conversion = None
         self.busy = False
         self.cancel = threading.Event()
         self.executor = ThreadPoolExecutor(max_workers=1)
@@ -76,85 +80,100 @@ class App(tk.Tk):
         style.configure('.', font=('Segoe UI', 10))
         style.configure('TFrame', background='#f1f5f9')
         style.configure('TLabel', background='#f1f5f9', foreground='#1e293b')
-        style.configure('TButton', padding=(12, 7))
+        style.configure('TButton', padding=(10, 6))
         style.configure('Accent.TButton', background='#087f8c', foreground='white')
         style.map('Accent.TButton', background=[('active', '#065f6a'), ('disabled', '#94a3b8')])
-        style.configure('Treeview', rowheight=29, fieldbackground='white', background='white')
-        style.configure('Treeview.Heading', font=('Segoe UI', 10, 'bold'), padding=7)
-        style.configure('TLabelframe', background='#f1f5f9')
-        style.configure('TLabelframe.Label', font=('Segoe UI', 12, 'bold'), foreground='#0f172a', background='#f1f5f9')
+        style.configure('Treeview', rowheight=28, fieldbackground='white', background='white')
+        style.configure('Treeview.Heading', font=('Segoe UI', 10, 'bold'), padding=5)
         canvas = tk.Canvas(self, background='#f1f5f9', highlightthickness=0)
         self.canvas = canvas
         page_scroll = ttk.Scrollbar(self, orient='vertical', command=canvas.yview)
         page_scroll.pack(side='right', fill='y')
         canvas.pack(side='left', fill='both', expand=True)
         canvas.configure(yscrollcommand=page_scroll.set)
-        wrap = ttk.Frame(canvas, padding=22)
+        wrap = ttk.Frame(canvas, padding=18)
         window = canvas.create_window((0, 0), window=wrap, anchor='nw')
         wrap.bind('<Configure>', lambda _: canvas.configure(scrollregion=canvas.bbox('all')))
         canvas.bind('<Configure>', lambda event: canvas.itemconfigure(window, width=event.width))
+        wrap.columnconfigure(0, weight=1)
         header = ttk.Frame(wrap)
-        header.pack(fill='x')
-        ttk.Label(header, text='PageThaw', font=('Segoe UI', 26, 'bold')).pack(side='left')
+        header.grid(row=0, column=0, sticky='ew')
+        ttk.Label(header, text='PageThaw', font=('Segoe UI', 23, 'bold')).pack(side='left')
         self.language_button = self.button(header, 'Русский' if self.language.get() == 'en' else 'English', self.switch_language)
         self.language_button.pack(side='right')
-        ttk.Label(header, text='EN / RU', foreground='#64748b').pack(side='right', padx=10)
-        ttk.Label(wrap, text=self.t('PDF forms → editable Word documents'), font=('Segoe UI', 12)).pack(anchor='w', pady=(0, 4))
-        ttk.Label(wrap, text=self.t('Preserve the page. Choose the fonts. Convert locally.'), foreground='#64748b').pack(anchor='w', pady=(0, 15))
-
-        files = ttk.LabelFrame(wrap, text=self.t('1  Choose PDFs'), padding=12)
-        files.pack(fill='both', expand=True)
-        row = ttk.Frame(files)
-        row.pack(fill='x', pady=(0, 8))
-        self.button(row, 'Add PDFs…', self.add_files).pack(side='left')
-        self.button(row, 'Remove selected', self.remove_files).pack(side='left', padx=6)
-        self.button(row, 'Scan files & fonts', self.scan, 'Accent.TButton').pack(side='right')
+        ttk.Label(wrap, text=self.t('PDF forms → editable Word documents'), foreground='#64748b').grid(row=1, column=0, sticky='w', pady=(2, 16))
+        toolbar = ttk.Frame(wrap)
+        toolbar.grid(row=2, column=0, sticky='ew', pady=(0, 7))
+        self.button(toolbar, 'Add PDFs…', self.add_files).pack(side='left')
+        self.button(toolbar, 'Remove selected', self.remove_files).pack(side='left', padx=6)
+        self.font_toggle = self.button(toolbar, 'Fonts…', self.toggle_fonts)
+        self.font_toggle.pack(side='right')
+        files = ttk.Frame(wrap)
+        files.grid(row=3, column=0, sticky='ew')
         self.file_tree = self.tree(files, ('pages', 'status'), ('Pages', 'Status'), height=4)
         self.file_tree.heading('#0', text=self.t('PDF file'))
-        self.file_tree.column('#0', width=420)
-        self.file_tree.column('pages', width=85, stretch=False)
-        self.file_tree.column('status', width=380)
-
-        fonts = ttk.LabelFrame(wrap, text=self.t('2  Check fonts'), padding=12)
-        fonts.pack(fill='both', expand=True, pady=12)
-        row = ttk.Frame(fonts)
-        row.pack(fill='x', pady=(0, 8))
-        ttk.Label(row, text=self.t('Missing fonts require your choice. Replacements can change spacing.')).pack(side='left')
-        self.button(row, 'Choose font…', self.choose_font).pack(side='right')
-        self.font_tree = self.tree(fonts, ('target', 'status'), ('Word font', 'Match'), height=4)
+        self.file_tree.column('#0', width=330)
+        self.file_tree.column('pages', width=75, stretch=False)
+        self.file_tree.column('status', width=350)
+        self.font_frame = ttk.Frame(wrap, padding=(0, 10, 0, 5))
+        self.font_frame.grid(row=4, column=0, sticky='ew')
+        font_row = ttk.Frame(self.font_frame)
+        font_row.pack(fill='x', pady=(0, 6))
+        self.button(font_row, 'Choose font…', self.choose_font).pack(side='left')
+        self.button(font_row, 'Scan files & fonts', self.scan).pack(side='right')
+        self.font_tree = self.tree(self.font_frame, ('target', 'status'), ('Word font', 'Match'), height=3)
         self.font_tree.heading('#0', text=self.t('Font used in PDF'))
-        self.font_tree.column('#0', width=280)
-        self.font_tree.column('target', width=300)
-        self.font_tree.column('status', width=230)
+        self.font_tree.column('#0', width=240)
+        self.font_tree.column('target', width=270)
+        self.font_tree.column('status', width=240)
         self.font_tree.bind('<Double-1>', lambda _: self.choose_font())
-
-        export = ttk.LabelFrame(wrap, text=self.t('3  Convert'), padding=12)
-        export.pack(fill='x')
-        row = ttk.Frame(export)
-        row.pack(fill='x')
-        ttk.Entry(row, textvariable=self.output).pack(side='left', fill='x', expand=True)
-        self.button(row, 'Output folder…', self.choose_output).pack(side='left', padx=(8, 0))
-        row = ttk.Frame(export)
-        row.pack(fill='x', pady=10)
-        ttk.Checkbutton(row, text=self.t('Turn standalone underscore blanks into lines'), variable=self.rules).pack(side='left')
-        ttk.Label(row, text=self.t('Graphics DPI')).pack(side='left', padx=(20, 6))
-        ttk.Combobox(row, values=('96', '144', '192'), textvariable=self.dpi, state='readonly', width=6).pack(side='left')
-        note = ttk.Label(export, text=self.t('Text stays in positioned boxes. Long edits do not reflow the page. Open results in desktop Word.'), foreground='#64748b')
-        note.pack(fill='x')
-        note.bind('<Configure>', lambda event: note.configure(wraplength=max(200, event.width)))
-        row = ttk.Frame(export)
-        row.pack(fill='x', pady=(12, 0))
-        self.button(row, 'Convert to Word', self.convert, 'Accent.TButton').pack(side='left')
-        self.cancel_button = ttk.Button(row, text=self.t('Cancel'), command=self.cancel.set, state='disabled')
-        self.cancel_button.pack(side='left', padx=8)
-        self.button(row, 'Open output', self.open_output).pack(side='left')
+        if not self.fonts_expanded:
+            self.font_frame.grid_remove()
+        ttk.Label(wrap, text=self.t('Save Word files to'), font=('Segoe UI', 10, 'bold')).grid(row=5, column=0, sticky='w', pady=(16, 5))
+        output_row = ttk.Frame(wrap)
+        output_row.grid(row=6, column=0, sticky='ew')
+        ttk.Entry(output_row, textvariable=self.output).pack(side='left', fill='x', expand=True)
+        self.button(output_row, 'Browse…', self.choose_output).pack(side='right', padx=(8, 0))
+        actions = ttk.Frame(wrap)
+        actions.grid(row=7, column=0, sticky='ew', pady=(15, 0))
+        self.button(actions, 'Convert to Word', self.convert, 'Accent.TButton').pack(side='left')
+        self.cancel_button = ttk.Button(actions, text=self.t('Cancel'), command=self.cancel.set, state='disabled')
+        self.cancel_button.pack(side='left', padx=7)
+        self.button(actions, 'Open output', self.open_output).pack(side='left')
+        self.button(actions, 'Options…', self.toggle_options).pack(side='right')
+        self.options_frame = ttk.Frame(wrap, padding=(0, 12, 0, 0))
+        self.options_frame.grid(row=8, column=0, sticky='ew')
+        ttk.Checkbutton(self.options_frame, text=self.t('Turn standalone underscore blanks into lines'), variable=self.rules).pack(anchor='w')
+        row = ttk.Frame(self.options_frame)
+        row.pack(fill='x', pady=(7, 0))
+        ttk.Label(row, text=self.t('Graphics DPI')).pack(side='left')
+        ttk.Combobox(row, values=('96', '144', '192'), textvariable=self.dpi, state='readonly', width=6).pack(side='left', padx=8)
         self.button(row, 'Compare pages (Word)…', self.review).pack(side='right')
+        if not self.options_expanded:
+            self.options_frame.grid_remove()
         self.progress = ttk.Progressbar(wrap, mode='indeterminate')
-        self.progress.pack(fill='x', pady=(14, 7))
+        self.progress.grid(row=9, column=0, sticky='ew', pady=(14, 7))
         status_label = ttk.Label(wrap, textvariable=self.status)
-        status_label.pack(fill='x')
+        status_label.grid(row=10, column=0, sticky='ew')
         status_label.bind('<Configure>', lambda event: status_label.configure(wraplength=max(200, event.width)))
-        ttk.Label(wrap, text=self.t('v{version}  ·  Open source / AGPL-3.0  ·  No uploads', version=__version__), foreground='#64748b').pack(anchor='e', pady=(5, 0))
+        ttk.Label(wrap, text=self.t('v{version}  ·  Open source / AGPL-3.0  ·  No uploads', version=__version__), foreground='#64748b').grid(row=11, column=0, sticky='e', pady=(10, 0))
+
+    def toggle_fonts(self):
+        self.fonts_expanded = not self.fonts_expanded
+        self.font_frame.grid() if self.fonts_expanded else self.font_frame.grid_remove()
+        self.fit_panels()
+
+    def toggle_options(self):
+        self.options_expanded = not self.options_expanded
+        self.options_frame.grid() if self.options_expanded else self.options_frame.grid_remove()
+        self.fit_panels()
+
+    def fit_panels(self):
+        # Keep the convert controls visible when optional details are expanded.
+        height = min(600 + 175*self.fonts_expanded + 95*self.options_expanded,
+                     self.winfo_screenheight()-80)
+        width = self.winfo_width() if self.winfo_width() > 1 else 880
+        self.geometry(f'{width}x{height}')
 
     def tree(self, parent, columns, headings, height):
         holder = ttk.Frame(parent)
@@ -190,6 +209,7 @@ class App(tk.Tk):
             if not self.output.get():
                 self.output.set(str(self.paths[0].parent / 'PageThaw-output'))
             self.set_status('Scan files & fonts before converting.')
+            self.scan()
 
     def refresh_files(self):
         self.file_tree.delete(*self.file_tree.get_children())
@@ -211,6 +231,8 @@ class App(tk.Tk):
         self.faces = []
         self.font_tree.delete(*self.font_tree.get_children())
         self.refresh_files()
+        if self.paths:
+            self.scan()
 
     def scan(self):
         if not self.paths:
@@ -235,6 +257,8 @@ class App(tk.Tk):
                 self.mapping[name] = matches[0]
         self.refresh_files()
         self.refresh_fonts()
+        if set(self.font_chars)-self.mapping.keys() and not self.fonts_expanded:
+            self.toggle_fonts()
         missing = len(self.font_chars)-len(self.mapping)
         self.set_status('Scan complete. {missing} font choice(s) needed; {unsupported} unsupported file(s).', missing=missing, unsupported=sum(bool(i.error) for i in self.infos))
 
@@ -272,29 +296,36 @@ class App(tk.Tk):
             return
         infos, mapping = list(self.infos), dict(self.mapping)
         output, rules, dpi = Path(self.output.get()).resolve(), self.rules.get(), int(self.dpi.get())
+        def finished(records):
+            self.last_conversion = (output, infos, records)
+            self.converted(records)
         self.run_job(lambda: convert_batch(infos, output, mapping, rules=rules, dpi=dpi, cancel=self.cancel,
             progress=lambda n, total, r: self.events.put(('progress', f'{n}/{total}: {r["input"]} — {r["status"]}'))),
-            self.converted, 'Converting locally…')
+            finished, 'Converting locally…')
 
     def converted(self, records):
         passed = sum(r.get('content_check') == 'passed' for r in records)
         failed = sum(r['status'] == 'failed' for r in records)
-        self.set_status('{passed} converted; {failed} failed; {cancelled} cancelled. Review every page in Word. Details: pagethaw-report.json', passed=passed, failed=failed, cancelled=len(records)-passed-failed)
+        self.set_status('{passed} converted; {failed} failed; {cancelled} cancelled. Review the Word files.', passed=passed, failed=failed, cancelled=len(records)-passed-failed)
         self.file_results = {info.path: record for info, record in zip(self.infos, records)}
         self.refresh_files()
 
     def review(self):
-        if not self.output.get() or not (Path(self.output.get())/'pagethaw-report.json').exists():
+        if not self.last_conversion:
             messagebox.showinfo(self.t('Convert first'), self.t('Convert a batch first, then create a comparison using installed desktop Microsoft Word.'))
             return
         from .word_review import review_batch
-        output, infos = Path(self.output.get()).resolve(), list(self.infos)
-        if not infos:
-            messagebox.showinfo(self.t('Scan originals'), self.t('Add and scan the original PDFs before comparing this output folder.'))
-            return
-        self.run_job(lambda: review_batch(infos, output, cancel=self.cancel,
-            progress=lambda text: self.events.put(('progress', text))),
-            lambda result: self.set_status(result), 'Exporting through desktop Word; a separate instance is used…')
+        output, infos, records = self.last_conversion
+        def compare():
+            folder = Path(tempfile.mkdtemp(prefix='PageThaw-comparison-'))
+            result = review_batch(infos, output, records=records, review_output=folder, cancel=self.cancel,
+                progress=lambda text: self.events.put(('progress', text)))
+            return result, folder
+        def finished(value):
+            message, folder = value
+            self.set_status(message)
+            os.startfile(str(folder))
+        self.run_job(compare, finished, 'Exporting through desktop Word; a separate instance is used…')
 
     def open_output(self):
         path = Path(self.output.get()) if self.output.get() else None
