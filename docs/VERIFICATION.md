@@ -19,9 +19,10 @@ Current local checks on Windows, 2026-10-22:
 - **Passed:** all 49 converted pages exported through isolated desktop Word
   instances and inspected against the original at the same scale. Page counts,
   wrapping, form blanks, bold, tables/borders and graphics stayed consistent.
-  Small baseline/glyph-rendering differences remain. Final regenerated DOCX
-  parts were byte-identical for the 35 previously reviewed documents; the newly
-  converted document was exported and reviewed separately.
+  Small baseline/glyph-rendering differences remain. After the metric-setting
+  fix, 14 affected portable outputs were re-exported and independently reviewed.
+  Every uncompressed DOCX part from the final release EXE matches the reviewed
+  outputs for all 36 documents (49 pages).
 - **Passed:** source hashes unchanged for all 68 inputs. The final output folder
   contains only 36 DOCX files. No private sources, fonts or comparisons are public.
 - **Passed:** real Windows input-file lock, damaged/missing input, blocked output
@@ -29,18 +30,22 @@ Current local checks on Windows, 2026-10-22:
   with 49 items correctly cancelled and no partial documents left behind.
 - **Passed:** independent code review after retry/cancel fixes and standalone
   regression-fixture correction. Independent visual review covered 47 pages;
-  the lead reviewed the other two, plus representative spot checks.
+  the lead reviewed the other two, plus representative spot checks. The final
+  14-page portable comparison also passed independent visual review.
 - **Passed:** local single EXE and folder ZIP outside the source tree, Windows-only
   PATH, no Python environment variables, repeat conversion and preservation of
   existing files, DOCX-only output, notices export, bundled-runtime import paths,
   and packaged EN/RU widget smoke. The native app was also visually checked in
   both languages; the public screenshot is the empty 1.0 Russian interface.
-- **Passed:** [hosted candidate build and fresh-VM binary tests](https://github.com/DelureDev/pagethaw/actions/runs/39792308224).
+- **Passed:** [final build and fresh-VM binary jobs](https://github.com/DelureDev/pagethaw/actions/runs/39796148192)
+  and [79 hosted Windows tests](https://github.com/DelureDev/pagethaw/actions/runs/39796147864).
   A separate Windows Server 2025 VM tested both artifacts without Word or private
   fonts, using a clean preference directory, external Python unavailable on PATH,
   and imports verified inside the frozen runtime. The hosted image still contains
   developer tools; this is not a claim that Python was uninstalled from the VM.
-  The release notes identify the final artifact build/checksums.
+- **Passed:** [published v1.0.0](https://github.com/DelureDev/pagethaw/releases/tag/v1.0.0)
+  EXE, ZIP and checksum file downloaded again after publication; all bytes match
+  the tested artifacts from source commit `bcea798`. Checksums are in the release.
 
 **Not run:** physical printing, Windows Sandbox, Word web/mobile or LibreOffice.
 The app remains unsigned. Review your real output; passing this corpus does not
