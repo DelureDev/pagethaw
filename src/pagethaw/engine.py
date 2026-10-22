@@ -36,7 +36,19 @@ class PDFInfo:
     font_proofs: dict[str, FontProof] = field(default_factory=dict)
 
 
-def inspect_pdf(path: Path) -> PDFInfo:
+def error_message(exc):
+    if isinstance(exc, PermissionError):
+        return 'Cannot access this file or folder. Close it in other apps or choose a writable folder, then retry.'
+    if isinstance(exc, FileNotFoundError):
+        return 'File or folder not found. Check that it still exists, then scan again.'
+    if isinstance(exc, (NotADirectoryError, IsADirectoryError)):
+        return 'This path has the wrong type. Choose a PDF file and a separate output folder.'
+    if isinstance(exc, pymupdf.FileDataError):
+        return 'This PDF is damaged or unreadable. Try opening it in a PDF viewer and saving a new copy.'
+    return str(exc)
+
+
+def inspect_pdf(path: Path, cancel=None) -> PDFInfo:
     result = PDFInfo(path.resolve())
     try:
         result.sha256 = digest(path)
@@ -51,6 +63,8 @@ def inspect_pdf(path: Path) -> PDFInfo:
                 raise ValueError('Pages larger than 22 inches are outside Word page-size limits.')
             fonts = {}
             for page in pdf:
+                if cancel and cancel.is_set():
+                    raise InterruptedError('Scan cancelled. Scan again before converting.')
                 prefix = f'Page {page.number+1}: '
                 if page.rotation:
                     raise ValueError(prefix+'rotated pages are not supported yet.')
@@ -68,6 +82,11 @@ def inspect_pdf(path: Path) -> PDFInfo:
                             raise ValueError(prefix+'rotated/vertical text is not supported yet.')
                         for span in line['spans']:
                             text = span['text']
+                            # Whitespace-only runs still have a font and survive
+                            # as editable text. Include them in the font choice
+                            # list rather than failing later on an unknown font.
+                            if text:
+                                fonts.setdefault(span['font'], set()).update(text)
                             if not text.strip():
                                 continue
                             found = True
@@ -77,13 +96,14 @@ def inspect_pdf(path: Path) -> PDFInfo:
                                 raise ValueError(prefix+'right-to-left text is not supported yet.')
                             if any(ord(c) < 32 and not c.isspace() for c in text):
                                 raise ValueError(prefix+'unsupported control characters.')
-                            fonts.setdefault(span['font'], set()).update(text)
                 if not found:
                     raise ValueError(prefix+'no selectable text; scanned pages need OCR first.')
             result.fonts = {name: ''.join(sorted(chars)) for name, chars in sorted(fonts.items())}
-            result.font_proofs = pdf_font_proofs(pdf)
+            result.font_proofs = pdf_font_proofs(pdf, cancel=cancel)
+    except InterruptedError:
+        raise
     except Exception as exc:
-        result.error = str(exc)
+        result.error = error_message(exc)
     return result
 
 
@@ -133,6 +153,8 @@ def validate_mapping(info: PDFInfo, mapping: dict[str, FontFace]):
         if name not in mapping:
             raise ValueError('Choose a font for '+name+'. No substitution was applied.')
         face = mapping[name]
+        if face.sha256 and digest(face.path) != face.sha256:
+            raise ValueError('Installed fonts changed. Scan files & fonts again before converting.')
         if not face.installed:
             raise ValueError('Install '+face.full_name+' before conversion so Word can use it.')
         missing = missing_glyphs(face, chars)
@@ -177,7 +199,7 @@ def convert_pdf(info, target, mapping, rules=False, dpi=144, cancel=None):
     expected_pages = []
     with pymupdf.open(info.path) as pdf:
         check_geometry(pdf, mapping, info.font_proofs)
-        fonts = {name: pymupdf.Font(fontfile=face.path) for name, face in mapping.items()}
+        fonts = {name: pymupdf.Font(fontfile=mapping[name].path) for name in info.fonts}
         doc = Document()
         doc.core_properties.author = 'PageThaw'
         doc.core_properties.title = info.path.stem
@@ -216,6 +238,8 @@ def convert_pdf(info, target, mapping, rules=False, dpi=144, cancel=None):
                 family = quoteattr(face.family)
                 style = f'position:absolute;margin-left:{x:.3f}pt;margin-top:{y:.3f}pt;width:{max(right-x+20,25):.3f}pt;height:{max(bottom-y+5,15):.3f}pt;z-index:1;mso-position-horizontal-relative:page;mso-position-vertical-relative:page;mso-wrap-style:none'
                 append_shape(paragraph, f'''<v:shape xmlns:v="{V}" xmlns:w="{W}" id="text{index}_{number}" style="{style}" stroked="f" filled="f"><v:textbox inset="0,0,0,0"><w:txbxContent><w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="{round(size*1.25*20)}" w:lineRule="exact"/><w:widowControl w:val="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii={family} w:hAnsi={family} w:eastAsia={family} w:cs={family}/><w:b w:val="{int(face.bold)}"/><w:bCs w:val="{int(face.bold)}"/><w:i w:val="{int(face.italic)}"/><w:iCs w:val="{int(face.italic)}"/><w:kern w:val="1"/><w:sz w:val="{round(size*2)}"/><w:szCs w:val="{round(size*2)}"/><w:color w:val="{span['color']:06x}"/><w:w w:val="100"/></w:rPr><w:t xml:space="preserve">{escape(span['text'])}</w:t></w:r></w:p></w:txbxContent></v:textbox></v:shape>''')
+        if cancel and cancel.is_set():
+            raise InterruptedError('Cancelled before saving the document.')
         target.parent.mkdir(parents=True, exist_ok=True)
         temporary = target.with_suffix('.partial.docx')
         if temporary.exists():
@@ -264,6 +288,8 @@ def digest(path):
 
 def convert_batch(infos, output, mapping, *, rules=False, dpi=144, cancel=None, progress=None, write_report=False):
     output = Path(output)
+    if output.is_file():
+        raise NotADirectoryError('Choose an output folder, not a file.')
     output.mkdir(parents=True, exist_ok=True)
     report = output / 'pagethaw-report.json'
     if write_report and report.exists():
@@ -292,7 +318,7 @@ def convert_batch(infos, output, mapping, *, rules=False, dpi=144, cancel=None, 
             except InterruptedError as exc:
                 record.update(status='cancelled', error=str(exc))
             except Exception as exc:
-                record.update(status='failed', error=str(exc))
+                record.update(status='failed', error=error_message(exc), detail=str(exc))
         if write_report:
             report.write_text(json.dumps({'version': 1, 'files': records,
                 'visual_review': 'not run; open outputs in Word and compare every page'}, ensure_ascii=False, indent=2), encoding='utf-8')

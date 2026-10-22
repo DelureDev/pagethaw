@@ -29,6 +29,7 @@ class FontFace:
     installed: bool = False
     version: str = ''
     aliases: tuple[str, ...] = ()
+    sha256: str = ''
 
     @property
     def label(self):
@@ -60,7 +61,7 @@ def read_font(path: Path, installed=False) -> FontFace:
         return FontFace(str(path), family, get(4) or family, get(6),
                         bool(flags & 32 or mac & 1 or 'bold' in style),
                         bool(flags & 1 or mac & 2 or 'italic' in style or 'oblique' in style), installed,
-                        get(5).split(';')[0], (family+' '+get(2),))
+                        get(5).split(';')[0], (family+' '+get(2),), hashlib.sha256(path.read_bytes()).hexdigest())
 
 
 @lru_cache(maxsize=128)
@@ -74,7 +75,7 @@ def missing_glyphs(face, text):
     return sorted({c for c in text if not c.isspace() and ord(c) not in chars})
 
 
-def installed_fonts() -> list[FontFace]:
+def installed_fonts(cancel=None) -> list[FontFace]:
     paths = set()
     if sys.platform == 'win32':
         import winreg
@@ -98,6 +99,8 @@ def installed_fonts() -> list[FontFace]:
                 paths.update(base.rglob('*.otf'))
     faces = []
     for path in sorted(paths, key=lambda p: str(p).casefold()):
+        if cancel and cancel.is_set():
+            raise InterruptedError('Scan cancelled. Scan again before converting.')
         try:
             faces.append(read_font(path, installed=True))
         except Exception:

@@ -1,5 +1,29 @@
 # Project state
 
+1.0 work in progress on `release/1.0.0`: owner authorized autonomous completion
+and testing with local PDFs. Consolidate into one release after gates pass.
+Current local checks: 78 tests passed; 68 distinct local documents exercised,
+35 converted (48 pages), 18 unsupported by preflight, other files need fonts.
+One whitespace-only-font preflight defect was found and fixed; final corpus
+rerun and Word visual review are in progress. Evidence is private under
+`.private/v1.0.0`. These are current results, not a release approval.
+
+New preferences revalidate saved font-file hashes and source identity (or fresh
+glyph proof). Fonts remain visible; output stays DOCX-only. Retry preserves
+successful files. Independent review found unused-font retry and cancelled-rescan
+state issues; fixes/regressions landed locally and re-review is pending.
+
+No usable local Sandbox/VM was found by the read-only audit. A fresh hosted
+Windows binary test is planned with external Python unavailable on PATH and
+module paths verified inside the bundled runtime. Physical printing/alternate
+Word viewers remain outside release scope.
+
+Delegation: native routing_scout roles requested gpt-6-luna/high for bounded PDF
+and Windows-environment inventories; both completed without file mutations.
+Native routing_reviewer requested gpt-6.1-sol/high for independent code and
+separate corpus visual checks; lead is sole writer. Role selections were accepted
+by the runtime; no fallback used. Final results will replace this in-progress note.
+
 Public project: PageThaw (pagethaw), an offline Windows PDF-to-Word app.
 
 Owner-approved defaults: preserve page layout with editable text boxes; ask before

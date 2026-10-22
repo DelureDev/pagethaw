@@ -1,6 +1,8 @@
 """Synthetic test that can also run inside the frozen portable application."""
 from pathlib import Path
 import json
+import sys
+import os
 import pymupdf
 
 from .engine import inspect_pdf, convert_batch
@@ -44,6 +46,36 @@ def run(folder, compare=False):
         assert results[0].get('page_count_check') == 'passed', results
         assert len(list((folder/'review/comparisons/1').glob('page-*.png'))) == 2
         comparison = 'exported; visual inspection required'
+    from . import gui
+    old_local = os.environ.get('LOCALAPPDATA')
+    os.environ['LOCALAPPDATA'] = str(folder/'test-profile')
+    app = None
+    try:
+        app = gui.App()
+        app.withdraw()
+        app.language.set('en')
+        app.switch_language()
+        assert app.language.get() == 'ru'
+        assert app.font_frame.winfo_manager() == 'grid'
+        app.switch_language()
+        assert app.language.get() == 'en'
+        assert app.font_frame.winfo_manager() == 'grid'
+        app.update_idletasks()
+    finally:
+        if app:
+            app.close()
+        if old_local is None:
+            os.environ.pop('LOCALAPPDATA', None)
+        else:
+            os.environ['LOCALAPPDATA'] = old_local
+    bundled = 'not applicable'
+    if getattr(sys, 'frozen', False):
+        root = Path(sys._MEIPASS).resolve()
+        for name in ('pymupdf', 'docx', 'fontTools', 'PIL', 'tkinter'):
+            module = __import__(name)
+            assert Path(module.__file__).resolve().is_relative_to(root), name
+        bundled = 'passed'
     (folder/'smoke-result.json').write_text(json.dumps({'status': 'passed', 'pages': 2, 'records': records,
+        'frozen': bool(getattr(sys, 'frozen', False)), 'bundled_runtime': bundled, 'gui': 'passed',
         'repeat_conversion': 'passed', 'output_only_docx': 'passed', 'comparison': comparison}, indent=2), encoding='utf-8')
     return records

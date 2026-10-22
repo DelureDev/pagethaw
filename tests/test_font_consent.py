@@ -7,6 +7,7 @@ import pytest
 
 from pagethaw import gui
 from pagethaw.fonts import read_font
+from pagethaw.engine import PDFInfo
 from pagethaw.i18n import translate
 
 
@@ -31,7 +32,7 @@ def face():
 
 def test_convert_waits_for_missing_font_choice(monkeypatch, language):
     warnings = []
-    app = localize(SimpleNamespace(infos=[object()], font_chars={'MissingFont': 'Test'}, mapping={}), language)
+    app = localize(SimpleNamespace(infos=[PDFInfo(Path('test.pdf'), fonts={'MissingFont': 'Test'})], font_chars={'MissingFont': 'Test'}, mapping={}), language)
     monkeypatch.setattr(gui.messagebox, 'showwarning', lambda *args: warnings.append(args))
     gui.App.convert(app)
     assert len(warnings) == 1

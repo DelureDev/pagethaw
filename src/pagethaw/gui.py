@@ -13,6 +13,8 @@ from .engine import inspect_pdf, convert_batch
 from .fonts import installed_fonts, read_font, install_for_current_user, missing_glyphs
 from .font_match import automatic_mapping, match_status, family_conflicts
 from .i18n import translate, font_label, load_language, save_language
+from . import preferences
+from .engine import error_message
 
 
 class App(tk.Tk):
@@ -35,7 +37,8 @@ class App(tk.Tk):
         self.cancel = threading.Event()
         self.executor = ThreadPoolExecutor(max_workers=1)
         self.events = queue.Queue()
-        self.output = tk.StringVar()
+        saved_output = preferences.load().get('output', '')
+        self.output = tk.StringVar(value=saved_output if isinstance(saved_output, str) else '')
         self.status = tk.StringVar()
         self.font_status = tk.StringVar()
         self.set_status('Choose your PDFs to begin. Files stay on your computer.')
@@ -107,6 +110,7 @@ class App(tk.Tk):
         toolbar.grid(row=2, column=0, sticky='ew', pady=(0, 7))
         self.button(toolbar, 'Add PDFs…', self.add_files).pack(side='left')
         self.button(toolbar, 'Remove selected', self.remove_files).pack(side='left', padx=6)
+        self.button(toolbar, 'Details', self.file_details).pack(side='right')
         files = ttk.Frame(wrap)
         files.grid(row=3, column=0, sticky='ew')
         self.file_tree = self.tree(files, ('pages', 'status'), ('Pages', 'Status'), height=3)
@@ -114,6 +118,8 @@ class App(tk.Tk):
         self.file_tree.column('#0', width=330)
         self.file_tree.column('pages', width=75, stretch=False)
         self.file_tree.column('status', width=350)
+        self.file_tree.bind('<Double-1>', lambda _: self.file_details())
+        self.file_tree.bind('<Return>', lambda _: self.file_details())
         self.font_frame = ttk.Frame(wrap, padding=(0, 10, 0, 5))
         self.font_frame.grid(row=4, column=0, sticky='ew')
         font_row = ttk.Frame(self.font_frame)
@@ -143,6 +149,9 @@ class App(tk.Tk):
         self.cancel_button = ttk.Button(actions, text=self.t('Cancel'), command=self.cancel.set, state='disabled')
         self.cancel_button.pack(side='left', padx=7)
         self.button(actions, 'Open output', self.open_output).pack(side='left')
+        self.retry_button = self.button(actions, 'Retry failed', lambda: self.convert(retry=True))
+        self.retry_button.pack(side='left', padx=7)
+        self.refresh_retry()
         self.button(actions, 'Options…', self.toggle_options).pack(side='right')
         self.options_frame = ttk.Frame(wrap, padding=(0, 12, 0, 0))
         self.options_frame.grid(row=8, column=0, sticky='ew')
@@ -221,6 +230,26 @@ class App(tk.Tk):
                 status = 'Choose fonts below'
             self.file_tree.insert('', 'end', iid=str(n), text=path.name,
                 values=(info.pages if info else '—', self.t(status)))
+        self.refresh_retry()
+
+    def refresh_retry(self):
+        if hasattr(self, 'retry_button'):
+            retry = any(r['status'] in ('failed', 'cancelled') for r in self.file_results.values())
+            self.retry_button.configure(state='normal' if retry and not self.busy else 'disabled')
+
+    def file_details(self):
+        selected = self.file_tree.selection()
+        if not selected:
+            return
+        path = self.paths[int(selected[0])]
+        info = next((i for i in self.infos if i.path == path), None)
+        record = self.file_results.get(path, {})
+        status = record.get('error') or record.get('status') or (info.error if info else '') or 'Ready'
+        text = str(path)+'\n\n'+self.t(status)
+        detail = record.get('detail')
+        if detail and detail != status:
+            text += '\n\n'+detail
+        messagebox.showinfo(self.t('File details'), text)
 
     def remove_files(self):
         chosen = {int(n) for n in self.file_tree.selection()}
@@ -241,10 +270,32 @@ class App(tk.Tk):
             messagebox.showinfo(self.t('Choose PDFs'), self.t('Add one or more PDFs first.'))
             return
         paths = list(self.paths)
-        self.run_job(lambda: ([inspect_pdf(p) for p in paths], installed_fonts()), self.scanned, 'Scanning PDFs and installed font faces…')
+        language = self.language.get()
+        self.infos = []
+        self.mapping.clear()
+        self.font_chars.clear()
+        self.file_results.clear()
+        self.refresh_files()
+        self.refresh_fonts()
+        def inspect():
+            infos = []
+            for n, path in enumerate(paths, 1):
+                if self.cancel.is_set():
+                    raise InterruptedError('Scan cancelled. Scan again before converting.')
+                self.events.put(('progress', translate(language, 'Scanning {number}/{total}: {file}', number=n, total=len(paths), file=path.name)))
+                infos.append(inspect_pdf(path, cancel=self.cancel))
+            if self.cancel.is_set():
+                raise InterruptedError('Scan cancelled. Scan again before converting.')
+            faces = installed_fonts(cancel=self.cancel)
+            mapping = automatic_mapping(infos, faces, cancel=self.cancel)
+            mapping.update(preferences.restore_fonts(infos, faces))
+            if self.cancel.is_set():
+                raise InterruptedError('Scan cancelled. Scan again before converting.')
+            return infos, faces, mapping
+        self.run_job(inspect, self.scanned, 'Scanning PDFs and installed font faces…')
 
     def scanned(self, value):
-        self.infos, self.faces = value
+        self.infos, self.faces = value[:2]
         self.file_results.clear()
         self.mapping.clear()
         self.font_chars = {}
@@ -252,7 +303,7 @@ class App(tk.Tk):
             if not info.error:
                 for name, chars in info.fonts.items():
                     self.font_chars[name] = self.font_chars.get(name, '')+chars
-        self.mapping = automatic_mapping(self.infos, self.faces)
+        self.mapping = value[2] if len(value) > 2 else automatic_mapping(self.infos, self.faces)
         self.refresh_files()
         self.refresh_fonts()
         missing = len(self.font_chars)-len(self.mapping)
@@ -294,32 +345,45 @@ class App(tk.Tk):
         path = filedialog.askdirectory(title=self.t('Choose an output folder'))
         if path:
             self.output.set(path)
+            preferences.save({'output': path})
 
-    def convert(self):
+    def convert(self, retry=False):
         if not self.infos:
             messagebox.showinfo(self.t('Scan first'), self.t('Scan files & fonts before converting.'))
             return
-        missing = set(self.font_chars)-self.mapping.keys()
+        infos = [i for i in self.infos if not retry or self.file_results.get(i.path, {}).get('status') in ('failed', 'cancelled')]
+        if not infos:
+            return
+        required = {name for i in infos if not i.error for name in i.fonts}
+        missing = required-self.mapping.keys()
         if missing:
             messagebox.showwarning(self.t('Fonts need your choice'), self.t('Choose a font for: {fonts}', fonts=', '.join(sorted(missing))))
             return
         if not self.output.get().strip():
             self.choose_output()
             return
-        infos, mapping = list(self.infos), dict(self.mapping)
+        mapping = {name: self.mapping[name] for name in required}
         output, rules, dpi = Path(self.output.get()).resolve(), self.rules.get(), int(self.dpi.get())
+        preferences.save({'output': str(output)})
         def finished(records):
             self.last_conversion = (output, infos, records)
-            self.converted(records)
-        self.run_job(lambda: convert_batch(infos, output, mapping, rules=rules, dpi=dpi, cancel=self.cancel,
-            progress=lambda n, total, r: self.events.put(('progress', f'{n}/{total}: {r["input"]} — {r["status"]}'))),
-            finished, 'Converting locally…')
+            self.converted(records, infos)
+        def convert():
+            current = installed_fonts(cancel=self.cancel)
+            paths = {face.path for face in current}
+            for face in mapping.values():
+                if face.path not in paths or family_conflicts(face, current):
+                    raise ValueError('Installed fonts changed. Scan files & fonts again before converting.')
+            return convert_batch(infos, output, mapping, rules=rules, dpi=dpi, cancel=self.cancel,
+                progress=lambda n, total, r: self.events.put(('progress', f'{n}/{total}: {r["input"]} — {r["status"]}')))
+        self.run_job(convert, finished, 'Converting locally…')
 
-    def converted(self, records):
+    def converted(self, records, infos=None):
+        self.file_results.update({info.path: record for info, record in zip(self.infos if infos is None else infos, records)})
+        records = list(self.file_results.values())
         passed = sum(r.get('content_check') == 'passed' for r in records)
         failed = sum(r['status'] == 'failed' for r in records)
         self.set_status('{passed} converted; {failed} failed; {cancelled} cancelled. Review the Word files.', passed=passed, failed=failed, cancelled=len(records)-passed-failed)
-        self.file_results = {info.path: record for info, record in zip(self.infos, records)}
         self.refresh_files()
 
     def review(self):
@@ -370,9 +434,12 @@ class App(tk.Tk):
                     self.cancel_button.configure(state='disabled')
                     try:
                         callback(future.result())
-                    except Exception as exc:
+                    except InterruptedError as exc:
                         self.set_status(str(exc))
-                        messagebox.showerror('PageThaw', self.t(str(exc)))
+                    except Exception as exc:
+                        self.set_status(error_message(exc))
+                        messagebox.showerror('PageThaw', self.t(error_message(exc)))
+                    self.refresh_retry()
         except queue.Empty:
             pass
         self.after(100, self.poll)
@@ -461,6 +528,8 @@ class FontDialog(tk.Toplevel):
         if match_status(self.app.infos, self.source, face) != 'verified' and not messagebox.askyesno(self.t('Use this replacement?'), self.t('An exact match for {source} could not be verified. Use {font} instead?\n\nLetter shapes and spacing may change. Review the converted pages.', source=self.source, font=font_label(face, self.app.language.get())), parent=self):
             return
         self.app.mapping[self.source] = face
+        if not preferences.remember_font(self.source, face, self.app.infos):
+            messagebox.showwarning(self.t('Font preference'), self.t('This font choice applies now, but could not be saved for next time.'), parent=self)
         self.app.refresh_fonts()
         self.app.refresh_files()
         self.destroy()

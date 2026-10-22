@@ -30,9 +30,11 @@ def signature(glyphset, name, scale):
     return hashlib.sha256(json.dumps([width, drawing]).encode()).hexdigest(), width
 
 
-def pdf_font_proofs(pdf):
+def pdf_font_proofs(pdf, cancel=None):
     proofs, loaded, aliases = {}, {}, {}
     for page in pdf:
+        if cancel and cancel.is_set():
+            raise InterruptedError('Scan cancelled. Scan again before converting.')
         resources = page.get_fonts(full=True)
         for ref, _, _, base, *_ in resources:
             aliases.setdefault(ref, set()).add(normalized(base))
@@ -56,6 +58,8 @@ def pdf_font_proofs(pdf):
             except Exception:
                 loaded[ref] = None
         for trace in page.get_texttrace():
+            if cancel and cancel.is_set():
+                raise InterruptedError('Scan cancelled. Scan again before converting.')
             proof = proofs.setdefault(trace['font'], FontProof())
             refs = {row[0] for row in resources if normalized(trace['font']) in aliases[row[0]]}
             if len(refs) != 1:
@@ -118,7 +122,7 @@ def family_conflicts(face, faces):
         return True
 
 
-def automatic_mapping(infos, faces):
+def automatic_mapping(infos, faces, cancel=None):
     """Names narrow candidates, glyphs verify them. Ambiguity always needs a choice."""
     chars = {}
     for info in infos:
@@ -127,6 +131,8 @@ def automatic_mapping(infos, faces):
                 chars[name] = chars.get(name, '') + text
     mapping = {}
     for name, text in chars.items():
+        if cancel and cancel.is_set():
+            raise InterruptedError('Scan cancelled. Scan again before converting.')
         matches = [face for face in faces if face.matches(name) and not missing_glyphs(face, text)
                    and match_status(infos, name, face) == 'verified' and not family_conflicts(face, faces)]
         if len(matches) == 1:

@@ -215,3 +215,78 @@ def test_gui_auto_scan_and_repeat_conversion_only_write_docx(app, tmp_path, monk
     assert (output/'form.docx').read_bytes() == first
     assert app.last_conversion[0] == output
     assert app.last_conversion[2][0]['output'] == 'form (2).docx'
+
+
+def test_retry_only_failed_files_and_details(app, tmp_path, monkeypatch):
+    import shutil
+    import pymupdf
+    from pagethaw import engine, preferences
+    source = tmp_path/'first.pdf'
+    with pymupdf.open() as pdf:
+        page = pdf.new_page()
+        page.insert_font(fontname='fixture', fontfile='C:/Windows/Fonts/arial.ttf')
+        page.insert_text((35, 60), 'Retry form', fontname='fixture')
+        pdf.save(source)
+    second = tmp_path/'second.pdf'
+    shutil.copyfile(source, second)
+    app.paths = []
+    app.output.set(str(tmp_path/'output'))
+    app.language.set('en')
+    app.file_results.clear()
+    monkeypatch.setattr(gui.filedialog, 'askopenfilenames', lambda **kwargs: (str(source), str(second)))
+    original = engine.convert_pdf
+    fail = True
+    def conversion(info, *args, **kwargs):
+        if info.path == second and fail:
+            raise PermissionError('File locked by another app')
+        return original(info, *args, **kwargs)
+    monkeypatch.setattr(engine, 'convert_pdf', conversion)
+    def wait():
+        deadline = time.monotonic()+20
+        while app.busy and time.monotonic() < deadline:
+            app.update()
+            time.sleep(.01)
+        assert not app.busy
+    app.add_files()
+    wait()
+    app.convert()
+    wait()
+    assert app.file_results[source]['content_check'] == 'passed'
+    assert app.file_results[second]['status'] == 'failed'
+    assert 'disabled' not in app.retry_button.state()
+    details = []
+    monkeypatch.setattr(gui.messagebox, 'showinfo', lambda *args: details.append(args))
+    app.file_tree.selection_set('1')
+    app.file_details()
+    assert 'Close it in other apps' in details[0][1]
+    assert 'File locked by another app' in details[0][1]
+    first_bytes = (tmp_path/'output/first.docx').read_bytes()
+    fail = False
+    app.retry_button.invoke()
+    wait()
+    assert app.status.get().startswith('2 converted; 0 failed; 0 cancelled.')
+    assert 'disabled' in app.retry_button.state()
+    assert {p.name for p in (tmp_path/'output').iterdir()} == {'first.docx', 'second.docx'}
+    assert (tmp_path/'output/first.docx').read_bytes() == first_bytes
+    assert app.last_conversion[1][0].path == second
+    assert preferences.load()['output'] == str(tmp_path/'output')
+
+
+def test_cancel_rescan_invalidates_previous_scan(app, monkeypatch, tmp_path):
+    source = tmp_path/'previous.pdf'
+    app.paths = [source]
+    app.infos = [PDFInfo(source, 1, {'Example': 'Test'}, sha256='old')]
+    app.mapping = {'Example': FontFace('unused.ttf', 'Example', 'Example', 'Example', False, False, True)}
+    app.font_chars = {'Example': 'Test'}
+    monkeypatch.setattr(gui, 'inspect_pdf', lambda *args, **kwargs: (_ for _ in ()).throw(InterruptedError('Scan cancelled. Scan again before converting.')))
+    app.scan()
+    deadline = time.monotonic()+5
+    while app.busy and time.monotonic() < deadline:
+        app.update()
+        time.sleep(.01)
+    assert not app.busy
+    assert not app.infos and not app.mapping
+    messages = []
+    monkeypatch.setattr(gui.messagebox, 'showinfo', lambda *args: messages.append(args))
+    app.convert()
+    assert messages[0][0] == app.t('Scan first')

@@ -32,6 +32,10 @@ The **Fonts** section stays visible. A warning appears when a matching font is
 missing or cannot be verified; use **Choose / install font…** to resolve it.
 Extra settings are under **Options…**.
 
+Your output folder and approved font choices are remembered and rechecked.
+If a file fails, use **Details** for the full message, fix the problem, then
+**Retry failed**. Successfully converted files are left alone.
+
 **No account, Python installation or Word is needed to convert.** All processing
 happens on your computer. Use the **Русский / English** button at the top right
 to switch the interface; your choice is remembered.

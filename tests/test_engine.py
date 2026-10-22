@@ -12,6 +12,75 @@ from pagethaw.engine import inspect_pdf, convert_pdf, convert_batch, W, V
 from pagethaw.fonts import read_font, normalized, missing_glyphs
 
 
+def test_unused_font_is_not_opened(tmp_path, face):
+    info = inspect_pdf(make_pdf(tmp_path, face))
+    fonts = mapping(info, face)
+    fonts['UnusedFont'] = replace(face, path=str(tmp_path/'missing.ttf'))
+    assert convert_pdf(info, tmp_path/'result.docx', fonts)['content_check'] == 'passed'
+
+
+def test_whitespace_only_font_is_in_preflight(tmp_path, face):
+    source = tmp_path/'spaces.pdf'
+    with pymupdf.open() as pdf:
+        page = pdf.new_page()
+        page.insert_font(fontname='fixture', fontfile=face.path)
+        page.insert_text((30, 60), 'Visible', fontname='fixture')
+        page.insert_text((30, 90), '     ', fontname='cour')
+        pdf.save(source)
+    info = inspect_pdf(source)
+    assert 'Courier' in info.fonts
+    assert not info.error
+    result = convert_batch([info], tmp_path/'out', {n: face for n in info.fonts if n != 'Courier'})
+    assert 'Choose a font for Courier' in result[0]['error']
+    result = convert_batch([info], tmp_path/'out', mapping(info, face))
+    assert result[0]['content_check'] == 'passed'
+
+
+def test_font_changed_since_selection_is_rejected(tmp_path, face):
+    info = inspect_pdf(make_pdf(tmp_path, face))
+    changed = tmp_path/'changed.ttf'
+    changed.write_bytes(Path(face.path).read_bytes()+b'changed')
+    with pytest.raises(ValueError, match='Installed fonts changed'):
+        convert_pdf(info, tmp_path/'result.docx', mapping(info, replace(face, path=str(changed))))
+    assert not (tmp_path/'result.docx').exists()
+
+
+def test_cancellation_during_font_proof_scan_propagates(tmp_path, face, monkeypatch):
+    import threading
+    from pagethaw import engine
+    source = make_pdf(tmp_path, face, pages=2)
+    event = threading.Event()
+    original = engine.pdf_font_proofs
+    def cancel_proof(pdf, cancel):
+        cancel.set()
+        return original(pdf, cancel=cancel)
+    monkeypatch.setattr(engine, 'pdf_font_proofs', cancel_proof)
+    with pytest.raises(InterruptedError, match='Scan cancelled'):
+        inspect_pdf(source, cancel=event)
+
+
+def test_damaged_and_missing_pdf_errors_are_readable(tmp_path):
+    bad = tmp_path/'broken.pdf'
+    bad.write_bytes(b'not a PDF')
+    assert 'damaged or unreadable' in inspect_pdf(bad).error
+    assert 'not found' in inspect_pdf(tmp_path/'absent.pdf').error
+
+
+def test_cancel_before_save_leaves_no_output(tmp_path, face, monkeypatch):
+    import threading
+    from pagethaw import engine
+    info = inspect_pdf(make_pdf(tmp_path, face))
+    event = threading.Event()
+    original = engine.append_shape
+    def cancel_after_shape(*args):
+        original(*args)
+        event.set()
+    monkeypatch.setattr(engine, 'append_shape', cancel_after_shape)
+    result = convert_batch([info, info], tmp_path/'out', mapping(info, face), cancel=event)
+    assert [r['status'] for r in result] == ['cancelled', 'cancelled']
+    assert not list((tmp_path/'out').iterdir())
+
+
 @pytest.fixture
 def face():
     path = Path(os.environ.get('WINDIR', 'C:/Windows'))/'Fonts'/'arial.ttf'

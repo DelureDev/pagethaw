@@ -9,6 +9,19 @@ import tempfile
 
 
 RU = {
+    'Installed fonts changed. Scan files & fonts again before converting.': 'Установленные шрифты изменились. Повторите проверку файлов и шрифтов перед конвертацией.',
+    'Cancelled before saving the document.': 'Операция отменена перед сохранением документа.',
+    'Details': 'Подробности',
+    'File details': 'Сведения о файле',
+    'Retry failed': 'Повторить ошибки',
+    'Font preference': 'Выбор шрифта',
+    'This font choice applies now, but could not be saved for next time.': 'Шрифт выбран, но сохранить этот выбор на будущее не удалось.',
+    'Scan cancelled. Scan again before converting.': 'Проверка отменена. Повторите её перед конвертацией.',
+    'Scanning {number}/{total}: {file}': 'Проверка {number}/{total}: {file}',
+    'Cannot access this file or folder. Close it in other apps or choose a writable folder, then retry.': 'Нет доступа к файлу или папке. Закройте файл в других приложениях или выберите доступную папку и повторите.',
+    'File or folder not found. Check that it still exists, then scan again.': 'Файл или папка не найдены. Проверьте путь и повторите проверку.',
+    'This path has the wrong type. Choose a PDF file and a separate output folder.': 'Неверный тип пути. Выберите PDF-файл и отдельную папку для результата.',
+    'This PDF is damaged or unreadable. Try opening it in a PDF viewer and saving a new copy.': 'PDF повреждён или не читается. Попробуйте открыть его в программе просмотра и сохранить новую копию.',
     'Fonts': 'Шрифты',
     'Choose / install font…': 'Выбрать / установить шрифт…',
     'Verified glyph match': 'Символы совпадают',
@@ -198,12 +211,10 @@ def preference_path():
 
 
 def load_language():
-    try:
-        saved = json.loads(preference_path().read_text(encoding='utf-8'))
-        if isinstance(saved, dict) and saved.get('language') in ('en', 'ru'):
-            return saved['language']
-    except (OSError, ValueError):
-        pass
+    from .preferences import load
+    saved = load(preference_path())
+    if saved.get('language') in ('en', 'ru'):
+        return saved['language']
     try:
         return 'ru' if (locale.getlocale()[0] or '').lower().startswith('ru') else 'en'
     except ValueError:
@@ -211,22 +222,7 @@ def load_language():
 
 
 def save_language(language):
+    from .preferences import save
     if language not in ('en', 'ru'):
         raise ValueError('Unsupported interface language')
-    temporary = None
-    try:
-        path = preference_path()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=path.parent, delete=False) as stream:
-            temporary = Path(stream.name)
-            json.dump({'language': language}, stream)
-        temporary.replace(path)
-        return True
-    except OSError:
-        return False
-    finally:
-        if temporary:
-            try:
-                temporary.unlink(missing_ok=True)
-            except OSError:
-                pass
+    return save({'language': language}, preference_path())

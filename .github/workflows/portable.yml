@@ -1,0 +1,46 @@
+name: Portable release candidate
+on:
+  workflow_dispatch:
+  push:
+    branches: ['release/1.0.0']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+      - run: python scripts/build_portable.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portable-candidate
+          path: |
+            dist/*/PageThaw-*-windows-x64.exe
+            dist/*/PageThaw-*-windows-x64.zip
+            dist/*/SHA256SUMS.txt
+          if-no-files-found: error
+  portable:
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: portable-candidate
+          path: candidate
+      - name: Test both formats on a fresh VM without external Python on PATH or Word
+        shell: pwsh
+        run: |
+          $release = (Get-ChildItem candidate -Filter SHA256SUMS.txt -Recurse).Directory.FullName
+          ./scripts/verify_portable.ps1 -Release $release -Results "$env:RUNNER_TEMP/portable-results" -FreshRunner
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: portable-verification
+          path: ${{ runner.temp }}/portable-results
+          if-no-files-found: warn
