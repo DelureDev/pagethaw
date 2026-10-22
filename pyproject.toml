@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pagethaw"
+version = "0.1.0"
+description = "Offline PDF forms to editable Word documents, with layout preservation and explicit font mapping."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "AGPL-3.0-only"
+authors = [{name = "DelureDev"}]
+dependencies = ["PyMuPDF==2.0", "python-docx==1.2.0", "fonttools==4.67.0", "Pillow==13.0.0"]
+
+[project.urls]
+Homepage = "https://github.com/DelureDev/pagethaw"
+Issues = "https://github.com/DelureDev/pagethaw/issues"
+
+[project.scripts]
+pagethaw = "pagethaw.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+pagethaw = ["*.ps1"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
