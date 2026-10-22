@@ -192,7 +192,11 @@ def check_geometry(pdf, mapping, proofs=None):
                 raise ValueError(f'Page {page.number+1}: stretched or unusually spaced text needs manual conversion.')
 
 
-def convert_pdf(info, target, mapping, rules=False, dpi=144, cancel=None):
+def convert_pdf(info, target, mapping, rules=False, dpi=144, cancel=None, mode='layout'):
+    if mode == 'editable':
+        return convert_editable(info, target, mapping, dpi, cancel)
+    if mode != 'layout':
+        raise ValueError('Choose Editable text or Preserve layout.')
     """Write atomically and refuse replacement of any existing output."""
     target = Path(target)
     if target.exists():
@@ -290,7 +294,52 @@ def digest(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def convert_batch(infos, output, mapping, *, rules=False, dpi=144, cancel=None, progress=None, write_report=False):
+def convert_editable(info, target, mapping, dpi=144, cancel=None):
+    from .editable import build_document, verify_document, cancelled
+    target = Path(target)
+    if target.exists():
+        raise FileExistsError('Output already exists: '+target.name)
+    if dpi not in (96, 144, 192):
+        raise ValueError('Choose 96, 144 or 192 DPI for graphics.')
+    validate_mapping(info, mapping)
+    cancelled(cancel)
+    with pymupdf.open(info.path) as pdf:
+        doc, expected, fields = build_document(pdf, mapping, dpi, cancel)
+    doc.core_properties.author = 'PageThaw'
+    doc.core_properties.title = info.path.stem
+    doc.core_properties.comments = 'Flowing paragraphs and expanding form cells. Pagination may differ from the PDF. Review before use.'
+    verify_document(doc, expected)
+    cancelled(cancel)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_suffix('.partial.docx')
+    owned = False
+    try:
+        with temporary.open('xb') as stream:
+            owned = True
+            doc.save(stream)
+        verify_document(Document(temporary), expected)
+        cancelled(cancel)
+        output_owned = False
+        try:
+            with target.open('xb') as destination:
+                output_owned = True
+                destination.write(temporary.read_bytes())
+        except BaseException:
+            if output_owned:
+                target.unlink(missing_ok=True)
+            raise
+    finally:
+        if owned:
+            temporary.unlink(missing_ok=True)
+    return {'status': 'converted; visual review required', 'mode': 'editable',
+            'source_pages': info.pages, 'content_check': 'passed', 'fields': fields,
+            'pagination': 'reflowed; inspect in Word', 'sha256': digest(target),
+            'substitutions': [name for name in info.fonts if not mapping[name].matches(name)]}
+
+
+def convert_batch(infos, output, mapping, *, rules=False, dpi=144, cancel=None, progress=None, write_report=False, mode='layout'):
+    if mode not in ('layout', 'editable'):
+        raise ValueError('Choose Editable text or Preserve layout.')
     output = Path(output)
     if output.is_file():
         raise NotADirectoryError('Choose an output folder, not a file.')
@@ -311,14 +360,14 @@ def convert_batch(infos, output, mapping, *, rules=False, dpi=144, cancel=None, 
         reserved.add(Path(name).with_suffix('.partial.docx').name.casefold())
         names.append(name)
     for index, info in enumerate(infos):
-        record = {'input': info.path.name, 'source': str(info.path), 'output': names[index]}
+        record = {'input': info.path.name, 'source': str(info.path), 'output': names[index], 'mode': mode}
         record['input_sha256'] = info.sha256
         records.append(record)
         if cancel and cancel.is_set():
             record.update(status='cancelled')
         else:
             try:
-                record.update(convert_pdf(info, output/record['output'], mapping, rules, dpi, cancel))
+                record.update(convert_pdf(info, output/record['output'], mapping, rules, dpi, cancel, mode=mode))
             except InterruptedError as exc:
                 record.update(status='cancelled', error=str(exc))
             except Exception as exc:

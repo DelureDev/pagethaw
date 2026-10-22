@@ -102,22 +102,32 @@ def review_batch(infos, output, cancel=None, progress=None, *, records=None, rev
             directory = review_output/'comparisons'/str(index)
             rendered = export_word(docx, directory)
             with pymupdf.open(info.path) as source, pymupdf.open(rendered) as doc:
-                pages = len(source)
-                if len(source) != len(doc):
+                pages = len(doc)
+                flowing = record.get('mode') == 'editable'
+                if len(source) != len(doc) and not flowing:
                     raise ValueError(f'Page count changed: {len(source)} → {len(doc)}')
-                for number, (a, b) in enumerate(zip(source, doc), 1):
+                source_pages = len(source)
+                for index in range(max(len(source), len(doc))):
+                    number = index+1
+                    a = source[index] if index < len(source) else None
+                    b = doc[index] if index < len(doc) else None
                     panels = []
-                    for page, label in ((a, 'Original PDF'), (b, 'Word export')):
-                        pixmap = page.get_pixmap(matrix=pymupdf.Matrix(1.5, 1.5), alpha=False)
-                        panel = Image.new('RGB', (pixmap.width, pixmap.height+30), '#eef2f6')
-                        panel.paste(Image.frombytes('RGB', (pixmap.width, pixmap.height), pixmap.samples), (0, 30))
+                    for page, label in ((a, 'Original PDF'), (b, 'Word export (reflowed)' if flowing else 'Word export')):
+                        if page is None:
+                            panel = Image.new('RGB', (round(source[0].rect.width*1.5), round(source[0].rect.height*1.5)+30), '#eef2f6')
+                            label += ' | No page at this index'
+                        else:
+                            pixmap = page.get_pixmap(matrix=pymupdf.Matrix(1.5, 1.5), alpha=False)
+                            panel = Image.new('RGB', (pixmap.width, pixmap.height+30), '#eef2f6')
+                            panel.paste(Image.frombytes('RGB', (pixmap.width, pixmap.height), pixmap.samples), (0, 30))
                         ImageDraw.Draw(panel).text((10, 8), f'{label} | Page {number}', fill='black')
                         panels.append(panel)
                     pair = Image.new('RGB', (sum(p.width for p in panels)+12, max(p.height for p in panels)), '#cbd5e1')
                     pair.paste(panels[0], (0, 0))
                     pair.paste(panels[1], (panels[0].width+12, 0))
                     pair.save(directory/f'page-{number}.png')
-            result.update(status='exported; inspect comparison images', page_count_check='passed', pages=pages)
+            result.update(status='exported; inspect comparison images', page_count_check='not required for editable mode' if flowing else 'passed',
+                          pages=pages, source_pages=source_pages, mode=record.get('mode', 'layout'))
         except Exception as exc:
             result['error'] = str(exc)
         report_path.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding='utf-8')

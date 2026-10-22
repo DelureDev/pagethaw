@@ -37,7 +37,9 @@ class App(tk.Tk):
         self.cancel = threading.Event()
         self.executor = ThreadPoolExecutor(max_workers=1)
         self.events = queue.Queue()
-        saved_output = preferences.load().get('output', '')
+        settings = preferences.load()
+        saved_output = settings.get('output', '')
+        self.mode = tk.StringVar(value=settings.get('mode') if settings.get('mode') in ('layout', 'editable') else 'editable')
         self.output = tk.StringVar(value=saved_output if isinstance(saved_output, str) else '')
         self.status = tk.StringVar()
         self.font_status = tk.StringVar()
@@ -138,6 +140,16 @@ class App(tk.Tk):
         self.font_tree.bind('<Double-1>', lambda _: self.choose_font())
         self.font_tree.tag_configure('warning', foreground='#92400e')
         self.refresh_font_status()
+        mode_row = ttk.Frame(self.font_frame, padding=(0, 12, 0, 0))
+        mode_row.pack(fill='x')
+        ttk.Label(mode_row, text=self.t('Conversion'), font=('Segoe UI', 10, 'bold')).pack(side='left', padx=(0, 12))
+        for value, label in (('editable', 'Editable text'), ('layout', 'Preserve layout')):
+            radio = ttk.Radiobutton(mode_row, text=self.t(label), variable=self.mode, value=value, command=self.mode_changed)
+            radio.pack(side='left', padx=(0, 16))
+            self.buttons.append(radio)
+        self.mode_help = ttk.Label(self.font_frame, foreground='#64748b')
+        self.mode_help.pack(fill='x', pady=(5, 0))
+        self.mode_help.bind('<Configure>', lambda event: self.mode_help.configure(wraplength=max(200, event.width)))
         ttk.Label(wrap, text=self.t('Save Word files to'), font=('Segoe UI', 10, 'bold')).grid(row=5, column=0, sticky='w', pady=(16, 5))
         output_row = ttk.Frame(wrap)
         output_row.grid(row=6, column=0, sticky='ew')
@@ -155,7 +167,8 @@ class App(tk.Tk):
         self.button(actions, 'Options…', self.toggle_options).pack(side='right')
         self.options_frame = ttk.Frame(wrap, padding=(0, 12, 0, 0))
         self.options_frame.grid(row=8, column=0, sticky='ew')
-        ttk.Checkbutton(self.options_frame, text=self.t('Turn standalone underscore blanks into lines'), variable=self.rules).pack(anchor='w')
+        self.rules_option = ttk.Checkbutton(self.options_frame, text=self.t('Turn standalone underscore blanks into lines'), variable=self.rules)
+        self.rules_option.pack(anchor='w')
         row = ttk.Frame(self.options_frame)
         row.pack(fill='x', pady=(7, 0))
         ttk.Label(row, text=self.t('Graphics DPI')).pack(side='left')
@@ -169,6 +182,19 @@ class App(tk.Tk):
         status_label.grid(row=10, column=0, sticky='ew')
         status_label.bind('<Configure>', lambda event: status_label.configure(wraplength=max(200, event.width)))
         ttk.Label(wrap, text=self.t('v{version}  ·  Open source / AGPL-3.0  ·  No uploads', version=__version__), foreground='#64748b').grid(row=11, column=0, sticky='e', pady=(10, 0))
+        self.refresh_mode()
+
+    def refresh_mode(self):
+        editable = self.mode.get() == 'editable'
+        self.mode_help.configure(text=self.t('Normal paragraphs and expanding fields. Single-column forms; spacing and page count may change.' if editable else
+            'Text stays in positioned boxes. Long edits do not reflow the page. Open results in desktop Word.'))
+        self.rules_option.configure(state='disabled' if editable else 'normal')
+
+    def mode_changed(self):
+        self.refresh_mode()
+        self.file_results.clear()
+        self.refresh_files()
+        preferences.save({'mode': self.mode.get()})
 
     def toggle_options(self):
         self.options_expanded = not self.options_expanded
@@ -363,8 +389,8 @@ class App(tk.Tk):
             self.choose_output()
             return
         mapping = {name: self.mapping[name] for name in required}
-        output, rules, dpi = Path(self.output.get()).resolve(), self.rules.get(), int(self.dpi.get())
-        preferences.save({'output': str(output)})
+        output, rules, dpi, mode = Path(self.output.get()).resolve(), self.rules.get(), int(self.dpi.get()), self.mode.get()
+        preferences.save({'output': str(output), 'mode': mode})
         def finished(records):
             self.last_conversion = (output, infos, records)
             self.converted(records, infos)
@@ -374,7 +400,7 @@ class App(tk.Tk):
             for face in mapping.values():
                 if face.path not in paths or family_conflicts(face, current):
                     raise ValueError('Installed fonts changed. Scan files & fonts again before converting.')
-            return convert_batch(infos, output, mapping, rules=rules, dpi=dpi, cancel=self.cancel,
+            return convert_batch(infos, output, mapping, rules=rules, dpi=dpi, mode=mode, cancel=self.cancel,
                 progress=lambda n, total, r: self.events.put(('progress', f'{n}/{total}: {r["input"]} — {r["status"]}')))
         self.run_job(convert, finished, 'Converting locally…')
 

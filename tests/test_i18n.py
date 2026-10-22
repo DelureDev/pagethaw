@@ -79,6 +79,7 @@ def test_switch_retains_files_fonts_options_results_and_selection(app, tmp_path)
     app.output.set(str(tmp_path/'result'))
     app.rules.set(True)
     app.dpi.set('192')
+    app.mode.set('editable')
     records = [{'status': 'converted; visual review required', 'content_check': 'passed'}]
     app.converted(records)
     app.refresh_fonts()
@@ -98,11 +99,29 @@ def test_switch_retains_files_fonts_options_results_and_selection(app, tmp_path)
     assert app.font_tree.selection() == ('Example-Bold',)
     assert app.output.get() == str(tmp_path/'result')
     assert app.rules.get() and app.dpi.get() == '192'
+    assert app.mode.get() == 'editable'
+    assert 'Обычные абзацы' in app.mode_help.cget('text')
     assert json.loads(i18n.preference_path().read_text())['language'] == 'ru'
     app.language_button.invoke()
     assert app.language.get() == 'en'
     assert app.file_tree.set('0', 'status') == records[0]['status']
     assert app.status.get().startswith('1 converted; 0 failed; 0 cancelled.')
+
+
+def test_mode_change_keeps_fonts_and_clears_stale_results(app):
+    mapping = dict(app.mapping)
+    app.mode.set('layout')
+    app.mode_changed()
+    assert not app.file_results
+    assert app.mapping == mapping
+    assert 'disabled' not in app.rules_option.state()
+    app.mode.set('editable')
+    app.mode_changed()
+    assert 'disabled' in app.rules_option.state()
+
+
+def test_editable_rejection_is_localized():
+    assert 'несколько колонок' in i18n.translate('ru', 'Editable mode: multiple body columns are not supported. Use Preserve layout for this PDF.')
 
 
 def test_switch_is_disabled_during_job_and_returns_after_completion(app):

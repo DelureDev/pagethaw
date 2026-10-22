@@ -4,7 +4,7 @@
 
 ### PDF forms → editable Word documents
 
-Keep the page layout. Choose your fonts. Convert offline.
+Choose normal editing or preserve the layout. Convert offline.
 
 **English** · [Русский](README.ru.md)
 
@@ -23,7 +23,7 @@ Windows 10/11 x64 · Free & open source · English / Русский
 2. **Add your PDFs.** PageThaw checks the files and fonts automatically.
 3. **Choose a font if asked.** Add your own `.ttf` / `.otf` or approve
    an installed replacement. Nothing is silently substituted.
-4. **Choose an output folder** and click **Convert to Word**. Open the `.docx`
+4. **Choose a mode and output folder**, then click **Convert to Word**. Open the `.docx`
    files in desktop Word and review every page.
 
 Your folder gets **only Word files**. Convert again to the same folder any time;
@@ -42,10 +42,17 @@ to switch the interface; your choice is remembered.
 
 ## What you get
 
+**Editable text** creates normal paragraphs and expanding table cells for blanks.
+Type in a blank cell; longer entries move the following content down. This mode
+supports simple, single-column forms. Spacing and page counts can change.
+
+**Preserve layout** keeps the original placement with text boxes. Choose it when
+appearance matters more than extensive editing. The app never silently switches modes.
+
 | Feature | How it helps |
 | :--- | :--- |
 | Batch conversion | Convert several PDFs in one run; see their status in the app. |
-| Editable page layout | Text stays in positioned boxes; logos and borders stay in place. |
+| Two conversion modes | Flowing paragraphs for editing, or positioned text for layout. |
 | Font choices | Match regular, bold and italic faces, or approve a substitute. |
 | Form blank lines | Optionally turn underscore blanks into continuous lines. |
 | Page comparison | With desktop Word installed, generate original/export image pairs. |
@@ -65,8 +72,9 @@ whole folder and keep `_internal` beside its `PageThaw.exe`.
 > **Best for digital forms with selectable text.** Scans need OCR first.
 > Conversion is not pixel-perfect: always check the result.
 
-- Text boxes preserve placement but **do not reflow** like normal paragraphs.
-  Long edits may need manual adjustment.
+- Editable mode rejects ambiguous columns, complex grids and overlapping graphics.
+  It does not reconstruct native Word footnotes or automatic numbered lists.
+- In Preserve layout mode, text boxes **do not reflow**. Long edits may need manual adjustment.
 - Missing or different fonts can change spacing. Fonts are not bundled or embedded;
   someone opening your DOCX needs the same fonts installed.
 - Rotated text, mixed page sizes and interactive PDF fields are not supported yet.

@@ -88,3 +88,31 @@ def test_comparison_retains_each_duplicate_source_occurrence(tmp_path, monkeypat
     monkeypatch.setattr(word_review, 'export_word', fake_export)
     word_review.review_batch([info, info], tmp_path, records=records, review_output=tmp_path/'review')
     assert seen == [original.name, second.name]
+
+
+def test_editable_comparison_keeps_extra_reflowed_pages(tmp_path, monkeypatch):
+    info = prepare(tmp_path)[0]
+    record = json.loads((tmp_path/'pagethaw-report.json').read_text())['files'][0]
+    record['mode'] = 'editable'
+    exported = tmp_path/'reflowed.pdf'
+    with pymupdf.open() as pdf:
+        for label in ('First page', 'Reflowed second page'):
+            pdf.new_page().insert_text((30, 50), label)
+        pdf.save(exported)
+    def fake_export(docx, output):
+        Path(output).mkdir(parents=True)
+        return exported
+    monkeypatch.setattr(word_review, 'export_word', fake_export)
+    review = tmp_path/'review'
+    word_review.review_batch([info], tmp_path, records=[record], review_output=review)
+    result = json.loads((review/'comparison-report.json').read_text())[0]
+    assert result['source_pages'] == 1 and result['pages'] == 2
+    assert result['page_count_check'] == 'not required for editable mode'
+    assert (review/'comparisons/1/page-2.png').exists()
+    # The same page-count drift remains a failure in Preserve layout.
+    record['mode'] = 'layout'
+    layout = tmp_path/'layout-review'
+    word_review.review_batch([info], tmp_path, records=[record], review_output=layout)
+    failed = json.loads((layout/'comparison-report.json').read_text())[0]
+    assert failed['status'] == 'failed'
+    assert 'Page count changed' in failed['error']

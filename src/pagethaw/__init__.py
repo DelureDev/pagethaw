@@ -1,3 +1,3 @@
-"""PageThaw: offline, layout-first PDF to Word conversion."""
+"""PageThaw: offline PDF forms to Word, with editing and layout modes."""
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"

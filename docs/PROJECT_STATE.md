@@ -1,14 +1,19 @@
 # Project state
 
-**PageThaw 1.0 is published:** [release and downloads](https://github.com/DelureDev/pagethaw/releases/tag/v1.0.0).
-The consolidated release mission is complete. The release source is
-`bcea79834d244d404361fc6354d449d394b4bfba`; subsequent documentation records verification.
-No further feature work or release is pending under this mission.
+**PageThaw 1.1 candidate:** normal paragraph-based Word editing after feedback
+about floating text boxes. Local implementation, 97 tests, independent code review,
+27-page corpus review and three edited-document stress checks passed.
+See [editable conversion plan](EDITABLE_PLAN.md). Work is on
+`feature/editable-documents`; 1.1.0 is a candidate, not yet published.
+Next: hosted portable build/fresh-VM checks, verify exact EXE conversion, then one
+consolidated release. Private evidence is in `.private/editable`.
 
 ## Product decisions
 
 - Offline Windows app; single EXE is the main download, folder ZIP is optional.
-- Preserve page layout with editable text boxes. Fonts remain visible; missing or
+- GUI defaults to Editable text: ordinary paragraphs and expanding form cells.
+  Preserve layout retains positioned text boxes. Mode choice is explicit and saved.
+  Fonts remain visible; missing or
   unverified fonts require an explicit choice. Never silently substitute.
 - Remember language, output folder and approved fonts; revalidate file hashes,
   PDF identity or fresh glyph proof, coverage and installed-family conflicts.
@@ -21,7 +26,7 @@ rotated text and interactive PDF fields remain outside scope. Conversion does no
 require Word; desktop Word is the reference viewer. Text boxes do not reflow like
 ordinary paragraphs, and pixel-identical rendering is not guaranteed.
 
-## Completed verification
+## Historical 1.0 verification
 
 - 79 local tests passed, as did hosted Windows tests and independent code review.
 - 68 distinct local PDFs exercised: 50 passed preflight, 36 converted into 49 pages,

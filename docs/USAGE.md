@@ -2,7 +2,22 @@
 
 [← Quick start](../README.md) · [Русский](../README.ru.md)
 
-## What it preserves
+## Choose a conversion mode
+
+**Editable text** (the initial GUI choice) builds ordinary flowing paragraphs and
+expanding table cells for standalone underscore blanks. Click in a blank cell to
+type. Body edits, long titles and multiline entries move following content instead
+of overflowing a text box. Font choices and emphasis remain explicit. Logos are
+embedded inline images. Pagination and spacing can differ from the PDF.
+
+This is a conservative reconstruction for single-column forms, with an optional
+logo/title header and simple outer form borders. Ambiguous columns, complex grids,
+overlapping graphics and unsupported drawing paths fail with a reason. There is
+no automatic fallback to the other mode. Footnotes and list numbers remain ordinary
+text, not native Word footnote/list fields. Source page boundaries may be removed
+when body text continues; new title/graphic headers retain a page boundary.
+
+**Preserve layout** retains the existing positioned-text converter. It preserves:
 
 - Text content, approximate positions, font sizes, selected font faces and styles.
 - Separate regular, bold and italic face mappings; Unicode character checks.
@@ -79,7 +94,9 @@ If desktop Microsoft Word is installed, **Options… → Compare pages (Word)**
 exports the latest completed conversion through a separate Word instance and
 opens original/export page pairs in a separate temporary folder. This explicit
 diagnostic action does not add images, PDFs or reports to your Word output folder.
-Page counts are checked; you inspect the images yourself. Conversion records are
+Page counts must match in Preserve layout mode. Editable mode renders every page,
+including additional pages, and labels the Word side as reflowed. Matching page
+numbers do not imply matching content positions. You inspect the images yourself. Conversion records are
 kept for the current app session; convert again after restarting to compare.
 
 The exporter has a 60-second deadline per document and only cleans up a process
@@ -92,12 +109,12 @@ same scale before changing fonts merely to compensate for screen rendering.
 
 ## Limits to know before converting
 
-- Text boxes preserve layout but do **not** reflow like normal paragraphs. Longer
+- In Preserve layout mode, text boxes do **not** reflow like normal paragraphs. Longer
   edits may need manual resizing/repositioning. Tables are not reconstructed as
   native Word tables; graphic backgrounds are not individually editable.
 - Scans, hidden OCR layers, transparent/outlined text, right-to-left text, rotated
   text/pages, mixed page sizes and interactive PDF form fields are rejected.
-- Justified word spacing is preserved using additional positioned text boxes.
+- In Preserve layout mode, justified word spacing uses additional positioned text boxes.
   Unusual letter stretch/spacing is rejected. Font
   substitutions and complex PDF drawing/clipping can still need manual repair.
 - Desktop Word is the reference viewer. Word for the web, mobile apps and
@@ -129,7 +146,7 @@ python -m pagethaw --inspect "C:\Documents\form.pdf"
 Convert with installed identity matches, or supply an explicit font mapping:
 
 ```powershell
-python -m pagethaw --convert "C:\Documents\form.pdf" --output "C:\Documents\converted" --font-map "font-map.json"
+python -m pagethaw --convert "C:\Documents\form.pdf" --mode editable --output "C:\Documents\converted" --font-map "font-map.json"
 ```
 
 Example `font-map.json` (use the **actual font names reported by --inspect**):
@@ -140,6 +157,10 @@ Example `font-map.json` (use the **actual font names reported by --inspect**):
   "Helvetica-Bold": "C:/Windows/Fonts/arialbd.ttf"
 }
 ```
+
+The CLI defaults to `--mode layout` for compatibility with existing scripts.
+Use `--mode editable` for normal paragraphs. The `--rules` option applies only to
+layout mode; editable mode always reconstructs standalone blanks as expanding cells.
 
 Providing this map explicitly approves those substitutions. Mapped font files
 must already be registered with Windows. Add `--rules` for form blank lines or

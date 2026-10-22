@@ -1,5 +1,36 @@
 # Release verification
 
+## 1.1 — editable paragraphs
+
+Current local checks on Windows, 2026-10-22:
+
+- **Passed:** 97 automated tests, including no positioned text in editable mode,
+  Cyrillic wrapping, inline emphasis, column/grid rejection, source reading order,
+  field/caption grouping, cancellation, safe repeated output, mode persistence and
+  extra-page comparisons without weakening layout-mode page-count checks.
+- **Passed:** three representative forms exported in desktop Word, eight pages
+  inspected. Long titles, two multiline fields, substantial paragraph insertion
+  and paragraph deletion were applied and exported again: all nine edited pages
+  inspected without clipping or overlap. Narrow cells wrap vertically rather than
+  automatically widening. One source form grows from two to three pages.
+- **Passed:** 35 previously convertible files exercised in editable mode. Fourteen
+  produced 27 pages; an independent reviewer inspected all pages. Twenty-one
+  complex layouts were explicitly rejected. Original input hashes stayed unchanged.
+  Independent non-whitespace character, reading-order and face/emphasis checks
+  run before accepting output; they are not a visual-quality guarantee.
+- **Passed:** independent code and visual review after fixes for dropped vertical
+  strokes, column detection, caption ordering and page breaks splitting fields.
+- **Passed:** portable English/Russian interface visually inspected; the public
+  screenshot contains an empty Russian interface with both conversion modes.
+- **Pending:** final artifact build, relocated EXE/ZIP, fresh Windows VM and release
+  checksum verification. The earlier local package predates the last pagination
+  fix and is not the release candidate.
+
+**Not run:** physical printing, Word web/mobile, LibreOffice or Windows Sandbox.
+Editable mode does not reconstruct native footnotes, automatic lists or complex
+grids. It allows reflow and changed page counts. Private fonts are never embedded
+or published. Preserve layout remains available; no new dependencies were added.
+
 ## 1.0 — consolidated reliability checks
 
 Current local checks on Windows, 2026-10-22:

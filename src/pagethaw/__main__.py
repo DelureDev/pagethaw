@@ -19,6 +19,7 @@ def main():
     parser.add_argument('--convert', nargs='+', type=Path, metavar='PDF')
     parser.add_argument('--font-map', type=Path, help='JSON object: PDF font name → installed .ttf/.otf file path. Explicit mappings approve substitution.')
     parser.add_argument('--output', type=Path)
+    parser.add_argument('--mode', choices=['layout', 'editable'], default='layout', help='layout: positioned text; editable: flowing paragraphs and expanding form cells')
     parser.add_argument('--rules', action='store_true', help='Convert standalone runs of 3+ underscores into vector lines')
     parser.add_argument('--dpi', type=int, choices=[96, 144, 192], default=144)
     parser.add_argument('--self-test', type=Path, metavar='NEW_FOLDER', help='Run a synthetic portable-runtime smoke test and write its report')
@@ -59,7 +60,7 @@ def main():
             if family_conflicts(matches[0], faces):
                 raise ValueError('Conflicting installed font versions: '+candidate.family+'. Remove duplicate versions and rescan, or choose a different family.')
             mapping[name] = matches[0]
-    records = convert_batch(infos, args.output, mapping, rules=args.rules, dpi=args.dpi, write_report=args.report)
+    records = convert_batch(infos, args.output, mapping, rules=args.rules, dpi=args.dpi, write_report=args.report, mode=args.mode)
     print(json.dumps(records, ensure_ascii=False, indent=2))
     return int(any(r.get('content_check') != 'passed' for r in records))
 

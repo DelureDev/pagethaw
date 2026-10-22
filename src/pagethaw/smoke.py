@@ -38,6 +38,13 @@ def run(folder, compare=False):
     assert repeated[0]['output'] == 'synthetic-form (2).docx'
     assert (output/records[0]['output']).read_bytes() == original
     assert {p.name for p in output.iterdir()} == {'synthetic-form.docx', 'synthetic-form (2).docx'}
+    editable = convert_batch([info], folder/'editable', {name: face for name in info.fonts}, mode='editable')
+    assert editable[0].get('content_check') == 'passed', editable
+    from docx import Document
+    from docx.oxml.ns import qn
+    editable_doc = Document(folder/'editable'/editable[0]['output'])
+    assert not list(editable_doc.element.iter(qn('w:txbxContent')))
+    assert editable_doc.tables and editable_doc.paragraphs
     comparison = 'not run'
     if compare:
         from .word_review import review_batch
@@ -60,6 +67,8 @@ def run(folder, compare=False):
         app.switch_language()
         assert app.language.get() == 'en'
         assert app.font_frame.winfo_manager() == 'grid'
+        assert app.mode.get() == 'editable'
+        assert 'Normal paragraphs' in app.mode_help.cget('text')
         app.update_idletasks()
     finally:
         if app:
@@ -77,5 +86,5 @@ def run(folder, compare=False):
         bundled = 'passed'
     (folder/'smoke-result.json').write_text(json.dumps({'status': 'passed', 'pages': 2, 'records': records,
         'frozen': bool(getattr(sys, 'frozen', False)), 'bundled_runtime': bundled, 'gui': 'passed',
-        'repeat_conversion': 'passed', 'output_only_docx': 'passed', 'comparison': comparison}, indent=2), encoding='utf-8')
+        'repeat_conversion': 'passed', 'output_only_docx': 'passed', 'editable_mode': 'passed', 'comparison': comparison}, indent=2), encoding='utf-8')
     return records
