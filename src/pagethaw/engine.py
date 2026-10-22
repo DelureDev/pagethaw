@@ -19,6 +19,7 @@ from docx.shared import Pt
 from docx.oxml import OxmlElement, parse_xml
 
 from .fonts import FontFace, missing_glyphs
+from .font_match import FontProof, pdf_font_proofs
 
 W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 V = 'urn:schemas-microsoft-com:vml'
@@ -32,6 +33,7 @@ class PDFInfo:
     fonts: dict[str, str] = field(default_factory=dict)
     error: str = ''
     sha256: str = ''
+    font_proofs: dict[str, FontProof] = field(default_factory=dict)
 
 
 def inspect_pdf(path: Path) -> PDFInfo:
@@ -79,12 +81,13 @@ def inspect_pdf(path: Path) -> PDFInfo:
                 if not found:
                     raise ValueError(prefix+'no selectable text; scanned pages need OCR first.')
             result.fonts = {name: ''.join(sorted(chars)) for name, chars in sorted(fonts.items())}
+            result.font_proofs = pdf_font_proofs(pdf)
     except Exception as exc:
         result.error = str(exc)
     return result
 
 
-def segments(page, rules=False):
+def segments(page, rules=False, fonts=None):
     """Underscores stay literal unless standalone form blanks are explicitly enabled."""
     for block in page.get_text('rawdict')['blocks']:
         for line in block.get('lines', []):
@@ -104,10 +107,21 @@ def segments(page, rules=False):
                 if start < len(chars):
                     ranges.append((start, len(chars), False))
                 for start, end, is_rule in ranges:
-                    group = chars[start:end]
-                    yield dict(raw, text=''.join(c['c'] for c in group), rule=is_rule,
-                               origin=group[0]['origin'],
-                               bbox=(group[0]['bbox'][0], raw['bbox'][1], group[-1]['bbox'][2], raw['bbox'][3]))
+                    cuts = [start]
+                    if fonts and not is_rule:
+                        font = fonts[raw['font']]
+                        for i in range(start, end-1):
+                            if chars[i]['c'].isspace() and not chars[i+1]['c'].isspace():
+                                advance = chars[i+1]['origin'][0]-chars[i]['origin'][0]
+                                nominal = font.glyph_advance(ord(chars[i]['c']))*raw['size']
+                                if abs(advance-nominal) > max(.15, .08*raw['size']):
+                                    cuts.append(i+1)
+                    cuts.append(end)
+                    for left, right in zip(cuts, cuts[1:]):
+                        group = chars[left:right]
+                        yield dict(raw, chars=group, text=''.join(c['c'] for c in group), rule=is_rule,
+                                   origin=group[0]['origin'],
+                                   bbox=(group[0]['bbox'][0], raw['bbox'][1], group[-1]['bbox'][2], raw['bbox'][3]))
 
 
 def validate_mapping(info: PDFInfo, mapping: dict[str, FontFace]):
@@ -126,18 +140,28 @@ def validate_mapping(info: PDFInfo, mapping: dict[str, FontFace]):
             raise ValueError(face.full_name+' lacks characters: '+repr(''.join(missing[:24])))
 
 
-def check_geometry(pdf, mapping):
-    """Detect unusual stretch/spacing for identity matches; substitutes carry a warning."""
+def check_geometry(pdf, mapping, proofs=None):
+    """Check letter advances, excluding justified word spaces. Keep short-word evidence."""
     fonts = {}
     for page in pdf:
         for span in segments(page):
             face = mapping[span['font']]
-            if not face.matches(span['font']) or len(span['chars']) < 3:
+            proof = (proofs or {}).get(span['font'])
+            if not face.matches(span['font']) and not (proof and proof.complete):
                 continue
-            font = fonts.setdefault(face.path, pymupdf.Font(fontfile=face.path))
+            if face.path not in fonts:
+                fonts[face.path] = pymupdf.Font(fontfile=face.path)
+            font = fonts[face.path]
             chars = span['chars']
-            distance = chars[-1]['origin'][0] - chars[0]['origin'][0]
-            expected = font.text_length(''.join(c['c'] for c in chars[:-1]), fontsize=span['size'])
+            distance = expected = 0
+            for char, following in zip(chars, chars[1:]):
+                if char['c'].isspace():
+                    continue
+                code = ord(char['c'])
+                widths = proof.widths.get(code, set()) if proof and proof.complete else set()
+                width = next(iter(widths)) if len(widths) == 1 else font.glyph_advance(code)
+                distance += following['origin'][0]-char['origin'][0]
+                expected += width*span['size']
             if expected > 12 and abs(distance / expected - 1) > .08:
                 raise ValueError(f'Page {page.number+1}: stretched or unusually spaced text needs manual conversion.')
 
@@ -152,7 +176,8 @@ def convert_pdf(info, target, mapping, rules=False, dpi=144, cancel=None):
     validate_mapping(info, mapping)
     expected_pages = []
     with pymupdf.open(info.path) as pdf:
-        check_geometry(pdf, mapping)
+        check_geometry(pdf, mapping, info.font_proofs)
+        fonts = {name: pymupdf.Font(fontfile=face.path) for name, face in mapping.items()}
         doc = Document()
         doc.core_properties.author = 'PageThaw'
         doc.core_properties.title = info.path.stem
@@ -164,7 +189,7 @@ def convert_pdf(info, target, mapping, rules=False, dpi=144, cancel=None):
         for index, page in enumerate(pdf):
             if cancel and cancel.is_set():
                 raise InterruptedError('Cancelled before the next page.')
-            parts = list(segments(page, rules))
+            parts = list(segments(page, rules, fonts))
             expected_pages.append((''.join(s['text'] for s in parts if not s['rule']), sum(s['rule'] for s in parts)))
             paragraph = doc.add_paragraph()
             fmt = paragraph.paragraph_format

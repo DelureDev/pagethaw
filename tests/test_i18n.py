@@ -134,14 +134,12 @@ def test_language_switch_does_not_restore_stale_fonts_after_file_change(app, tmp
 
 
 def test_compact_panels_and_last_conversion_survive_language_switch(app):
-    app.fonts_expanded = False
     app.options_expanded = False
     last = (Path('output'), [], [])
     app.last_conversion = last
     app.switch_language()
-    assert not app.font_frame.winfo_manager()
+    assert app.font_frame.winfo_manager() == 'grid'
     assert not app.options_frame.winfo_manager()
-    app.toggle_fonts()
     app.toggle_options()
     app.switch_language()
     assert app.font_frame.winfo_manager() == 'grid'
@@ -155,6 +153,29 @@ def test_adding_files_starts_scan(app, tmp_path, monkeypatch):
     monkeypatch.setattr(gui.filedialog, 'askopenfilenames', lambda **kwargs: (str(tmp_path/'new.pdf'),))
     app.add_files()
     assert calls == ['scan']
+
+
+def test_unverified_font_is_visible_warns_and_blocks_conversion(app, tmp_path, monkeypatch):
+    source = tmp_path/'missing.pdf'
+    face = FontFace('unused.ttf', 'Example', 'Example', 'Example', False, False, True)
+    app.paths = [source]
+    app.language.set('en')
+    # No embedded proof: a matching name must never silently approve this face.
+    monkeypatch.setattr(gui, 'missing_glyphs', lambda *_: [])
+    monkeypatch.setattr('pagethaw.font_match.missing_glyphs', lambda *_: [])
+    app.scanned(([PDFInfo(source, 1, {'Example': 'Test'})], [face]))
+    assert app.font_frame.winfo_manager() == 'grid'
+    assert not app.mapping
+    assert app.font_tree.selection() == ('Example',)
+    assert app.file_tree.set('0', 'status') == 'Choose fonts below'
+    assert '1 font(s) need your choice' in app.font_status.get()
+    warnings = []
+    monkeypatch.setattr(gui.messagebox, 'showwarning', lambda *args: warnings.append(args))
+    app.convert()
+    assert len(warnings) == 1 and 'Example' in warnings[0][1]
+    app.switch_language()
+    assert 'Требуют выбора: 1' in app.font_status.get()
+    assert app.font_frame.winfo_manager() == 'grid'
 
 
 def test_gui_auto_scan_and_repeat_conversion_only_write_docx(app, tmp_path, monkeypatch):

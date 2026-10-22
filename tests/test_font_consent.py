@@ -40,16 +40,18 @@ def test_convert_waits_for_missing_font_choice(monkeypatch, language):
 
 
 @pytest.mark.parametrize('approve', [False, True])
-def test_substitute_requires_positive_consent(monkeypatch, face, approve, language):
+@pytest.mark.parametrize('same_name', [False, True])
+def test_substitute_requires_positive_consent(monkeypatch, face, approve, language, same_name):
     calls = []
-    app = localize(SimpleNamespace(font_chars={'MissingFont': 'Test'}, mapping={},
-                          refresh_fonts=lambda: calls.append('refresh')), language)
-    dialog = SimpleNamespace(app=app, t=app.t, source='MissingFont', visible=[face],
+    source = face.postscript if same_name else 'MissingFont'
+    app = localize(SimpleNamespace(font_chars={source: 'Test'}, mapping={}, infos=[], faces=[face],
+                          refresh_fonts=lambda: calls.append('refresh'), refresh_files=lambda: None), language)
+    dialog = SimpleNamespace(app=app, t=app.t, source=source, visible=[face],
                              list=SimpleNamespace(curselection=lambda: (0,)),
                              destroy=lambda: calls.append('close'))
     monkeypatch.setattr(gui.messagebox, 'askyesno', lambda *args, **kwargs: approve)
     gui.FontDialog.accept(dialog)
-    assert ('MissingFont' in app.mapping) == approve
+    assert (source in app.mapping) == approve
     assert calls == (['refresh', 'close'] if approve else [])
 
 

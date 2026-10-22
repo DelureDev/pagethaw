@@ -91,6 +91,54 @@ def test_stretched_text_rejected_before_output(tmp_path, face):
     assert not target.exists()
 
 
+def test_stretched_single_letter_words_are_still_rejected(tmp_path, face):
+    info = inspect_pdf(make_pdf(tmp_path, face, 'a a a a a a a a a a a', stretch=True))
+    with pytest.raises(ValueError, match='stretched or unusually spaced'):
+        convert_pdf(info, tmp_path/'short-words.docx', mapping(info, face))
+
+
+@pytest.mark.parametrize('rules', [False, True])
+def test_justified_spaces_preserve_text_and_word_origins(tmp_path, face, rules):
+    from fontTools.ttLib import TTFont
+    from pagethaw.engine import segments
+    import re
+    source = make_pdf(tmp_path, face, 'First  second\xa0third _____ last')
+    with TTFont(face.path) as f:
+        space = f'{f.getGlyphID(f.getBestCmap()[32]):04x}'.encode()
+    # PDF TJ shifts only word spaces; glyphs themselves remain at natural scale.
+    with pymupdf.open(source) as pdf:
+        xref = pdf[0].get_contents()[0]
+        stream = pdf.xref_stream(xref)
+        def spaced(match):
+            codes = [match[1][i:i+4] for i in range(0, len(match[1]), 4)]
+            return b'<' + b''.join(c + (b'> -300 <' if c == space else b'') for c in codes) + b'>'
+        pdf.update_stream(xref, re.sub(rb'<([0-9a-f]+)>', spaced, stream))
+        justified = tmp_path/'justified.pdf'
+        pdf.save(justified)
+    info = inspect_pdf(justified)
+    target = tmp_path/'justified.docx'
+    convert_pdf(info, target, mapping(info, face), rules=rules)
+    root, text = content(target)
+    expected = source_text(justified)
+    assert text == (expected.replace('_____', '') if rules else expected)
+    with pymupdf.open(justified) as pdf:
+        parts = list(segments(pdf[0], rules, {n: pymupdf.Font(fontfile=face.path) for n in info.fonts}))
+        assert len(parts) >= 5
+        assert all(s['text'] == ''.join(c['c'] for c in s['chars']) for s in parts)
+        starts = [s['bbox'][0] for s in parts if not s['rule']]
+    shapes = [s for s in root.iter('{'+V+'}shape') if s.get('id', '').startswith('text')]
+    positions = [float(re.search(r'margin-left:([\d.]+)pt', s.get('style'))[1]) for s in shapes]
+    assert positions == pytest.approx(starts, abs=.001)
+
+
+def test_ordinary_text_is_not_split_into_words(tmp_path, face):
+    from pagethaw.engine import segments
+    info = inspect_pdf(make_pdf(tmp_path, face, 'Ordinary text stays grouped'))
+    with pymupdf.open(info.path) as pdf:
+        parts = list(segments(pdf[0], fonts={n: pymupdf.Font(fontfile=face.path) for n in info.fonts}))
+    assert len(parts) == 1
+
+
 def test_missing_font_requires_explicit_mapping(tmp_path, face):
     info = inspect_pdf(make_pdf(tmp_path, face))
     with pytest.raises(ValueError, match='Choose a font'):

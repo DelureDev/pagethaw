@@ -9,6 +9,17 @@ import tempfile
 
 
 RU = {
+    'Fonts': 'Шрифты',
+    'Choose / install font…': 'Выбрать / установить шрифт…',
+    'Verified glyph match': 'Символы совпадают',
+    'Choice required': 'Нужен выбор',
+    'Choose fonts below': 'Выберите шрифты ниже',
+    '{count} font(s) need your choice. An exact match is missing, different or unverified. Choose an installed font or add a font file.': 'Требуют выбора: {count}. Точное совпадение не найдено или не подтверждено. Выберите установленный шрифт или добавьте файл шрифта.',
+    'Fonts are ready. Approved replacements can change spacing.': 'Шрифты выбраны. Подтверждённая замена может изменить интервалы.',
+    'PDF fonts appear here after adding files. Replacements always need your approval.': 'Шрифты PDF появятся здесь после добавления файлов. Замена — только с вашего согласия.',
+    'Conflicting font versions': 'Конфликт версий шрифта',
+    'Windows has multiple versions of {font}. Remove duplicate versions in Windows Fonts and rescan, or choose a different font family.': 'В Windows установлено несколько версий {font}. Удалите дубликаты в настройках шрифтов Windows и повторите проверку или выберите другое семейство.',
+    'An exact match for {source} could not be verified. Use {font} instead?\n\nLetter shapes and spacing may change. Review the converted pages.': 'Точное совпадение с {source} не подтверждено. Использовать {font}?\n\nФорма букв и интервалы могут измениться. Проверьте страницы после конвертации.',
     'Windows PowerShell is unavailable. Conversion works without Word comparison.': 'Windows PowerShell недоступен. Конвертация работает без сравнения через Word.',
     'Fonts…': 'Шрифты…',
     'Options…': 'Настройки…',
@@ -179,7 +190,7 @@ def translate(language, message, **values):
 def font_label(face, language):
     if language != 'ru':
         return face.label
-    return face.full_name + (' [Полужирный]' if face.bold else '') + (' [Курсив]' if face.italic else '')
+    return face.full_name + (' [Полужирный]' if face.bold else '') + (' [Курсив]' if face.italic else '') + (f' · {face.version}' if face.version else '')
 
 
 def preference_path():

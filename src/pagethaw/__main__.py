@@ -36,6 +36,7 @@ def main():
         return 0
     from .engine import inspect_pdf, convert_batch
     from .fonts import installed_fonts, read_font
+    from .font_match import automatic_mapping, family_conflicts
     paths = args.inspect or args.convert
     if not paths:
         parser.error('Choose --inspect, --convert, or run without arguments for the GUI.')
@@ -47,12 +48,7 @@ def main():
     if not args.output:
         parser.error('--convert requires --output')
     faces = installed_fonts()
-    mapping = {}
-    for info in infos:
-        for name in info.fonts:
-            matches = [face for face in faces if face.matches(name)]
-            if len(matches) == 1:
-                mapping[name] = matches[0]
+    mapping = automatic_mapping(infos, faces)
     if args.font_map:
         raw = json.loads(args.font_map.read_text(encoding='utf-8-sig'))
         for name, path in raw.items():
@@ -60,6 +56,8 @@ def main():
             matches = [face for face in faces if Path(face.path).resolve() == Path(candidate.path).resolve()]
             if not matches:
                 raise ValueError('Mapped font is not registered with Windows: '+candidate.full_name)
+            if family_conflicts(matches[0], faces):
+                raise ValueError('Conflicting installed font versions: '+candidate.family+'. Remove duplicate versions and rescan, or choose a different family.')
             mapping[name] = matches[0]
     records = convert_batch(infos, args.output, mapping, rules=args.rules, dpi=args.dpi, write_report=args.report)
     print(json.dumps(records, ensure_ascii=False, indent=2))

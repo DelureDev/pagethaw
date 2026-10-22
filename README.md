@@ -28,7 +28,9 @@ Windows 10/11 x64 · Free & open source · English / Русский
 
 Your folder gets **only Word files**. Convert again to the same folder any time;
 existing files stay untouched and new copies get names such as `form (2).docx`.
-Font details and extra settings are available under **Fonts…** and **Options…**.
+The **Fonts** section stays visible. A warning appears when a matching font is
+missing or cannot be verified; use **Choose / install font…** to resolve it.
+Extra settings are under **Options…**.
 
 **No account, Python installation or Word is needed to convert.** All processing
 happens on your computer. Use the **Русский / English** button at the top right

@@ -27,14 +27,16 @@ class FontFace:
     bold: bool
     italic: bool
     installed: bool = False
+    version: str = ''
+    aliases: tuple[str, ...] = ()
 
     @property
     def label(self):
-        return self.full_name + (" [Bold]" if self.bold else "") + (" [Italic]" if self.italic else "")
+        return self.full_name + (" [Bold]" if self.bold else "") + (" [Italic]" if self.italic else "") + (f' · {self.version}' if self.version else '')
 
     def matches(self, pdf_name):
         # Full-face identity only: matching a family alone can select the wrong weight.
-        return normalized(pdf_name) in {normalized(self.postscript), normalized(self.full_name)}
+        return normalized(pdf_name) in {normalized(n) for n in (self.postscript, self.full_name, *self.aliases)}
 
     def to_dict(self):
         return asdict(self)
@@ -57,7 +59,8 @@ def read_font(path: Path, installed=False) -> FontFace:
         mac = font['head'].macStyle
         return FontFace(str(path), family, get(4) or family, get(6),
                         bool(flags & 32 or mac & 1 or 'bold' in style),
-                        bool(flags & 1 or mac & 2 or 'italic' in style or 'oblique' in style), installed)
+                        bool(flags & 1 or mac & 2 or 'italic' in style or 'oblique' in style), installed,
+                        get(5).split(';')[0], (family+' '+get(2),))
 
 
 @lru_cache(maxsize=128)

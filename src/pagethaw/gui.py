@@ -11,6 +11,7 @@ from tkinter import ttk, filedialog, messagebox
 from . import __version__
 from .engine import inspect_pdf, convert_batch
 from .fonts import installed_fonts, read_font, install_for_current_user, missing_glyphs
+from .font_match import automatic_mapping, match_status, family_conflicts
 from .i18n import translate, font_label, load_language, save_language
 
 
@@ -19,7 +20,7 @@ class App(tk.Tk):
         super().__init__()
         self.language = tk.StringVar(value=load_language())
         self.title(self.t('PageThaw — PDF to Word'))
-        self.geometry(f'880x{min(600, self.winfo_screenheight()-80)}')
+        self.geometry(f'920x{min(760, self.winfo_screenheight()-80)}')
         self.minsize(780, 500)
         self.configure(background='#f1f5f9')
         self.paths = []
@@ -28,7 +29,6 @@ class App(tk.Tk):
         self.mapping = {}
         self.font_chars = {}
         self.file_results = {}
-        self.fonts_expanded = False
         self.options_expanded = False
         self.last_conversion = None
         self.busy = False
@@ -37,6 +37,7 @@ class App(tk.Tk):
         self.events = queue.Queue()
         self.output = tk.StringVar()
         self.status = tk.StringVar()
+        self.font_status = tk.StringVar()
         self.set_status('Choose your PDFs to begin. Files stay on your computer.')
         self.rules = tk.BooleanVar(value=False)
         self.dpi = tk.StringVar(value='144')
@@ -106,11 +107,9 @@ class App(tk.Tk):
         toolbar.grid(row=2, column=0, sticky='ew', pady=(0, 7))
         self.button(toolbar, 'Add PDFs…', self.add_files).pack(side='left')
         self.button(toolbar, 'Remove selected', self.remove_files).pack(side='left', padx=6)
-        self.font_toggle = self.button(toolbar, 'Fonts…', self.toggle_fonts)
-        self.font_toggle.pack(side='right')
         files = ttk.Frame(wrap)
         files.grid(row=3, column=0, sticky='ew')
-        self.file_tree = self.tree(files, ('pages', 'status'), ('Pages', 'Status'), height=4)
+        self.file_tree = self.tree(files, ('pages', 'status'), ('Pages', 'Status'), height=3)
         self.file_tree.heading('#0', text=self.t('PDF file'))
         self.file_tree.column('#0', width=330)
         self.file_tree.column('pages', width=75, stretch=False)
@@ -119,16 +118,20 @@ class App(tk.Tk):
         self.font_frame.grid(row=4, column=0, sticky='ew')
         font_row = ttk.Frame(self.font_frame)
         font_row.pack(fill='x', pady=(0, 6))
-        self.button(font_row, 'Choose font…', self.choose_font).pack(side='left')
+        ttk.Label(font_row, text=self.t('Fonts'), font=('Segoe UI', 10, 'bold')).pack(side='left')
         self.button(font_row, 'Scan files & fonts', self.scan).pack(side='right')
-        self.font_tree = self.tree(self.font_frame, ('target', 'status'), ('Word font', 'Match'), height=3)
+        self.button(font_row, 'Choose / install font…', self.choose_font).pack(side='right', padx=6)
+        self.font_warning = ttk.Label(self.font_frame, textvariable=self.font_status)
+        self.font_warning.pack(fill='x', pady=(0, 7))
+        self.font_warning.bind('<Configure>', lambda event: self.font_warning.configure(wraplength=max(200, event.width)))
+        self.font_tree = self.tree(self.font_frame, ('target', 'status'), ('Word font', 'Match'), height=2)
         self.font_tree.heading('#0', text=self.t('Font used in PDF'))
         self.font_tree.column('#0', width=240)
         self.font_tree.column('target', width=270)
         self.font_tree.column('status', width=240)
         self.font_tree.bind('<Double-1>', lambda _: self.choose_font())
-        if not self.fonts_expanded:
-            self.font_frame.grid_remove()
+        self.font_tree.tag_configure('warning', foreground='#92400e')
+        self.refresh_font_status()
         ttk.Label(wrap, text=self.t('Save Word files to'), font=('Segoe UI', 10, 'bold')).grid(row=5, column=0, sticky='w', pady=(16, 5))
         output_row = ttk.Frame(wrap)
         output_row.grid(row=6, column=0, sticky='ew')
@@ -158,11 +161,6 @@ class App(tk.Tk):
         status_label.bind('<Configure>', lambda event: status_label.configure(wraplength=max(200, event.width)))
         ttk.Label(wrap, text=self.t('v{version}  ·  Open source / AGPL-3.0  ·  No uploads', version=__version__), foreground='#64748b').grid(row=11, column=0, sticky='e', pady=(10, 0))
 
-    def toggle_fonts(self):
-        self.fonts_expanded = not self.fonts_expanded
-        self.font_frame.grid() if self.fonts_expanded else self.font_frame.grid_remove()
-        self.fit_panels()
-
     def toggle_options(self):
         self.options_expanded = not self.options_expanded
         self.options_frame.grid() if self.options_expanded else self.options_frame.grid_remove()
@@ -170,7 +168,7 @@ class App(tk.Tk):
 
     def fit_panels(self):
         # Keep the convert controls visible when optional details are expanded.
-        height = min(600 + 175*self.fonts_expanded + 95*self.options_expanded,
+        height = min(760 + 95*self.options_expanded,
                      self.winfo_screenheight()-80)
         width = self.winfo_width() if self.winfo_width() > 1 else 880
         self.geometry(f'{width}x{height}')
@@ -206,6 +204,7 @@ class App(tk.Tk):
             self.faces = []
             self.refresh_files()
             self.font_tree.delete(*self.font_tree.get_children())
+            self.refresh_font_status()
             if not self.output.get():
                 self.output.set(str(self.paths[0].parent / 'PageThaw-output'))
             self.set_status('Scan files & fonts before converting.')
@@ -218,6 +217,8 @@ class App(tk.Tk):
             info = index.get(path)
             record = self.file_results.get(path)
             status = record.get('error', record['status']) if record else ((info.error or 'Ready') if info else 'Not scanned')
+            if not record and info and not info.error and set(info.fonts)-self.mapping.keys():
+                status = 'Choose fonts below'
             self.file_tree.insert('', 'end', iid=str(n), text=path.name,
                 values=(info.pages if info else '—', self.t(status)))
 
@@ -230,6 +231,7 @@ class App(tk.Tk):
         self.font_chars.clear()
         self.faces = []
         self.font_tree.delete(*self.font_tree.get_children())
+        self.refresh_font_status()
         self.refresh_files()
         if self.paths:
             self.scan()
@@ -250,15 +252,9 @@ class App(tk.Tk):
             if not info.error:
                 for name, chars in info.fonts.items():
                     self.font_chars[name] = self.font_chars.get(name, '')+chars
-        for name, chars in self.font_chars.items():
-            matches = [f for f in self.faces if f.matches(name) and not missing_glyphs(f, chars)]
-            # Ambiguous faces/versions require an explicit choice as well.
-            if len(matches) == 1:
-                self.mapping[name] = matches[0]
+        self.mapping = automatic_mapping(self.infos, self.faces)
         self.refresh_files()
         self.refresh_fonts()
-        if set(self.font_chars)-self.mapping.keys() and not self.fonts_expanded:
-            self.toggle_fonts()
         missing = len(self.font_chars)-len(self.mapping)
         self.set_status('Scan complete. {missing} font choice(s) needed; {unsupported} unsupported file(s).', missing=missing, unsupported=sum(bool(i.error) for i in self.infos))
 
@@ -267,7 +263,23 @@ class App(tk.Tk):
         for name in sorted(self.font_chars):
             face = self.mapping.get(name)
             self.font_tree.insert('', 'end', iid=name, text=name, values=(font_label(face, self.language.get()) if face else self.t('Choose a font…'),
-                (self.t('Identity match') if face.matches(name) else self.t('Replacement approved')) if face else self.t('Missing / ambiguous')))
+                (self.t('Verified glyph match') if match_status(self.infos, name, face) == 'verified' else self.t('Replacement approved')) if face else self.t('Choice required')),
+                tags=() if face else ('warning',))
+        missing = [n for n in sorted(self.font_chars) if n not in self.mapping]
+        if missing:
+            self.font_tree.selection_set(missing[0])
+        self.refresh_font_status()
+
+    def refresh_font_status(self):
+        missing = len(set(self.font_chars)-self.mapping.keys())
+        if missing:
+            text = self.t('{count} font(s) need your choice. An exact match is missing, different or unverified. Choose an installed font or add a font file.', count=missing)
+        elif self.font_chars:
+            text = self.t('Fonts are ready. Approved replacements can change spacing.')
+        else:
+            text = self.t('PDF fonts appear here after adding files. Replacements always need your approval.')
+        self.font_status.set(text)
+        self.font_warning.configure(foreground='#92400e' if missing else '#64748b')
 
     def choose_font(self):
         if self.busy:
@@ -418,6 +430,9 @@ class FontDialog(tk.Toplevel):
             missing = missing_glyphs(face, self.app.font_chars[self.source])
             if missing:
                 raise ValueError(self.t('This font lacks required characters: {chars}', chars=repr(''.join(missing[:24]))))
+            if family_conflicts(face, self.app.faces):
+                messagebox.showwarning(self.t('Conflicting font versions'), self.t('Windows has multiple versions of {font}. Remove duplicate versions in Windows Fonts and rescan, or choose a different font family.', font=face.family), parent=self)
+                return
             if not messagebox.askyesno(self.t('Install this font?'), self.t('Install {font} for your Windows account?\n\nWord needs it installed to display the result. The font is not embedded or uploaded. Use a font you have permission to install.', font=face.full_name), parent=self):
                 return
             face = install_for_current_user(Path(selected))
@@ -440,10 +455,14 @@ class FontDialog(tk.Toplevel):
         if missing:
             messagebox.showerror(self.t('Missing characters'), self.t('Choose another font. Missing: {chars}', chars=repr(''.join(missing[:24]))), parent=self)
             return
-        if not face.matches(self.source) and not messagebox.askyesno(self.t('Use this replacement?'), self.t('Replace {source} with {font}?\n\nLetter widths and spacing may change. Review the converted pages before using them.', source=self.source, font=font_label(face, self.app.language.get())), parent=self):
+        if family_conflicts(face, self.app.faces):
+            messagebox.showwarning(self.t('Conflicting font versions'), self.t('Windows has multiple versions of {font}. Remove duplicate versions in Windows Fonts and rescan, or choose a different font family.', font=face.family), parent=self)
+            return
+        if match_status(self.app.infos, self.source, face) != 'verified' and not messagebox.askyesno(self.t('Use this replacement?'), self.t('An exact match for {source} could not be verified. Use {font} instead?\n\nLetter shapes and spacing may change. Review the converted pages.', source=self.source, font=font_label(face, self.app.language.get())), parent=self):
             return
         self.app.mapping[self.source] = face
         self.app.refresh_fonts()
+        self.app.refresh_files()
         self.destroy()
 
 

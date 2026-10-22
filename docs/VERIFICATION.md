@@ -1,5 +1,32 @@
 # Release verification
 
+## v0.3.1 — justified spacing and visible font choices
+
+Checks performed on Windows on 2026-10-22:
+
+- **Passed:** 62 tests, including justified spaces/NBSP/repeated spaces, exact
+  source text and word origins, optional form lines, and rejection of genuinely
+  stretched text even when it consists of short words.
+- **Passed:** embedded subset/full-font glyph verification, rejection of same-name
+  modified metrics, unverified font warnings and explicit replacement consent in
+  English/Russian. Conflicting Windows family/style versions are rejected by both
+  automatic and explicit CLI mapping; nonconflicting replacements still work.
+- **Passed:** reported two-page form converted and exported through a separate
+  desktop Word instance. Both original/export pairs were inspected: justification,
+  form blanks, borders and bold text were preserved, with small rendering/baseline
+  differences. The private source and font files are not distributed.
+- **Passed:** native Russian app shows the font section and missing/unverified
+  warning without opening a panel. English/Russian widget state and consent flows
+  are covered by tests. The public preview contains no selected documents.
+- **Passed:** independent read-only review after fixing the explicit CLI mapping
+  conflict bypass. Final portable checks and hosted CI accompany the release.
+
+**Not run:** clean Windows VM, physical printing, Word web/mobile or LibreOffice.
+Glyph matching is conservative: unsupported/absent embedded data or ambiguous
+identities require manual choice. It does not prove every typography feature or
+the appearance of future edits. Final EXE/ZIP relocation and checksum evidence is
+retained with the release; conversion output remains DOCX-only by default.
+
 ## v0.3.0 — single executable and simpler conversion
 
 Checks performed on Windows on 2026-10-22:

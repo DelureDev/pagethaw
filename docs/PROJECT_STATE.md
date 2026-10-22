@@ -11,16 +11,19 @@ This first release targets selectable, horizontal text on consistent-sized pages
 Word desktop is the reference viewer. OCR, rotated text and interactive PDF forms
 are outside the first release. Conversion itself does not require Word.
 
-Status: v0.3.0 implementation and local verification complete. Owner approved a single EXE as the main
+Status: v0.3.1 implementation and local verification complete. Owner approved a single EXE as the main
 download with a lean ZIP alternative, removing unused AI layout/ONNX/NumPy payloads.
 Latest clarification: selected output folder must contain only Word files, no
 automatic reports or batch subfolders; repeat conversion should work with numbered
-filenames that preserve existing files. Compact UI with automatic scans and
-collapsible fonts/options; comparison remains explicit and writes to a separate
-temporary folder. Local tests pass (46), both relocated builds convert correctly,
-and the single-file Word export was visually checked on both pages. Independent
-review passed after correcting duplicate-source comparison selection. Final
-release asset checks and hosted CI are recorded with the release.
+filenames that preserve existing files. Fonts must always be visible, with a warning
+and explicit choice/install flow for missing or unverified matches. Only extra
+options collapse; comparison remains explicit in a separate temporary folder.
+Local tests pass (62). Justified word spacing is now preserved instead of being
+mistaken for stretched letters. Used-glyph outlines/advances verify automatic
+font matches; names alone do not. Windows family/style version conflicts require
+resolution in both GUI and CLI. Private two-page Word export was visually checked.
+Independent review passed after fixing the CLI conflict bypass. Final release
+asset checks and hosted CI are recorded with the release.
 
 Repository: https://github.com/DelureDev/pagethaw
 Release: https://github.com/DelureDev/pagethaw/releases/latest
@@ -51,3 +54,11 @@ read-only; lead remained the only writer, with no fallback. The preview was repl
 with the empty compact v0.3.0 Russian interface. Original/private user documents,
 fonts and open Word sessions were not changed. The single-file build embeds notices
 accessible with --export-notices; both formats share the same dependency analysis.
+
+v0.3.1 reused a native routing_reviewer role (configured gpt-6.1-sol/high) for
+read-only spacing diagnosis and independent review. Lead remained the sole writer;
+no fallback. Review passed after one finding was fixed and retested. The screenshot
+is the empty v0.3.1 Russian interface, with fonts always visible. No user documents
+or font binaries are included. Native warning was inspected; the user's subsequent
+interaction with the test window was left undisturbed. Private evidence is retained
+locally under .private/v0.3.1; final assets are built separately if that test EXE is open.

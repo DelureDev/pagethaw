@@ -30,22 +30,30 @@ fully and keep `_internal` beside `PageThaw.exe`. Both builds omit optional AI
 layout models, ONNX Runtime and NumPy; the converter uses PDF text coordinates.
 This packaging does not add OCR or AI-based table reconstruction.
 
-Add PDFs to scan automatically. **Fonts…** shows the mappings and rescan button;
-the font panel opens automatically when a font needs your choice. **Options…**
+Add PDFs to scan automatically. The **Fonts** section always shows the mappings,
+warnings and rescan button. **Choose / install font…** opens the font picker. **Options…**
 contains the form-line option, graphics resolution and optional Word comparison.
 
 ## Font handling
 
 PageThaw reads the font names used in the PDF and compares them with locally
-registered individual font faces. An unambiguous full-face identity can be matched
-automatically; a name match does not prove that two versions have identical metrics.
-Family names alone are not enough to select a weight.
+registered individual font faces. Automatic selection requires an unambiguous name
+match and matching outlines/advance widths for the glyphs used in the PDF. These
+are checked against embedded font data in memory; no font file is saved or installed
+from the PDF. Unsupported or absent embedded data requires your explicit choice.
+This checks used glyphs, not every aspect of typography or future edits.
 
 If a font is missing, the app stops for your choice. It does **not** silently
-replace it, extract embedded PDF fonts, download fonts, or upload your documents.
+replace it, install embedded PDF fonts, download fonts, or upload your documents.
 You can select an installed substitute and explicitly approve the changed mapping.
 The app checks that the chosen face contains the required characters. Substitutes
 can still change line lengths, positioning or appearance.
+
+The picker shows font versions. Different files registered under the same Windows
+family/style can make Word choose the wrong version, so remove conflicting versions
+in Windows Fonts and rescan, or choose a different family. PageThaw does not remove
+or rename your fonts. Name matches with unverified/different glyphs still require
+replacement approval.
 
 Adding a font asks before installing an unchanged copy for the current Windows
 account. Fonts are never embedded in the DOCX or included with the app. Recipients
@@ -76,7 +84,8 @@ same scale before changing fonts merely to compensate for screen rendering.
   native Word tables; graphic backgrounds are not individually editable.
 - Scans, hidden OCR layers, transparent/outlined text, right-to-left text, rotated
   text/pages, mixed page sizes and interactive PDF form fields are rejected.
-- Unusual stretch/spacing detected with matching fonts is rejected. Font
+- Justified word spacing is preserved using additional positioned text boxes.
+  Unusual letter stretch/spacing is rejected. Font
   substitutions and complex PDF drawing/clipping can still need manual repair.
 - Desktop Word is the reference viewer. Word for the web, mobile apps and
   LibreOffice have not been verified for this positioned layout.
@@ -141,7 +150,7 @@ notices and source references are embedded in both, and exposed beside the
 launcher in the ZIP. To extract them from the single EXE:
 
 ```powershell
-.\PageThaw-0.3.0-windows-x64.exe --export-notices ".\PageThaw-notices"
+.\PageThaw-0.3.1-windows-x64.exe --export-notices ".\PageThaw-notices"
 ```
 
 Choose a new destination; existing files are never replaced. The build audits
