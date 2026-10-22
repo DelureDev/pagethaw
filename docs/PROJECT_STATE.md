@@ -5,8 +5,10 @@ about floating text boxes. Local implementation, 97 tests, independent code revi
 27-page corpus review and three edited-document stress checks passed.
 See [editable conversion plan](EDITABLE_PLAN.md). Work is on
 `feature/editable-documents`; 1.1.0 is a candidate, not yet published.
-Next: hosted portable build/fresh-VM checks, verify exact EXE conversion, then one
-consolidated release. Private evidence is in `.private/editable`.
+Hosted portable build/fresh-VM and local relocation checks passed. Exact EXE output
+matches all 14 reviewed editable documents; all 35 layout regression outputs match
+the published 1.0 output. Next: publish the consolidated release and verify public
+downloads. Private evidence is in `.private/editable`.
 
 ## Product decisions
 

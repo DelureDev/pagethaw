@@ -37,7 +37,10 @@ Three private forms rendered in desktop Word with 2, 3 and 3 output pages (sourc
 visual review. All eight pages of the three proof documents and nine pages after
 long-title, multiline-field, paragraph insertion/deletion edits passed lead review.
 Narrow fields wrap long entries vertically; they do not widen automatically.
-Final portable checks and release are still pending. These are current-run
+Hosted build/fresh-VM and local relocated EXE/ZIP checks passed. The exact hosted
+EXE reproduces every internal DOCX part of all 14 reviewed editable outputs.
+All 35 layout regression outputs match the published 1.0 version.
+Release publication/download readback remains pending. These are current-run
 results, not inferred from the historical 1.0 gate.
 
 Native routing_reviewer requested gpt-6.1-sol/high for independent read-only

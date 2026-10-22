@@ -22,9 +22,23 @@ Current local checks on Windows, 2026-10-22:
   strokes, column detection, caption ordering and page breaks splitting fields.
 - **Passed:** portable English/Russian interface visually inspected; the public
   screenshot contains an empty Russian interface with both conversion modes.
-- **Pending:** final artifact build, relocated EXE/ZIP, fresh Windows VM and release
-  checksum verification. The earlier local package predates the last pagination
-  fix and is not the release candidate.
+- **Passed:** [hosted Windows tests](https://github.com/DelureDev/pagethaw/actions/runs/39817967540)
+  and [build / fresh Windows VM](https://github.com/DelureDev/pagethaw/actions/runs/39817967666)
+  from source commit `a0220c5b2790721314c219d2a02416584e9124d0`. The fresh VM has no
+  Word/private fonts and no external Python on PATH; bundled imports are verified.
+- **Passed:** downloaded hosted EXE/ZIP relocated locally into a path with spaces
+  and Cyrillic, clean preferences, Windows-only PATH, both conversion modes,
+  repeated conversion, DOCX-only output, notices and EN/RU widget smoke.
+- **Passed:** the exact hosted EXE reproduces every internal DOCX part of all 14
+  independently reviewed editable documents. All 35 layout regression documents
+  match the published 1.0 output. Private originals and fonts remain unchanged.
+
+Release artifact SHA256:
+
+- EXE: `41bd73b18d4e3474e69e91f9f165aabc132bb4de090216e75d0e9ef95fa2033e`
+- ZIP: `a5297a4be19a8f6e450534084d6998a9cf3fc1da98e158ee47a2a32f546ac707`
+
+Public release download verification is pending publication.
 
 **Not run:** physical printing, Word web/mobile, LibreOffice or Windows Sandbox.
 Editable mode does not reconstruct native footnotes, automatic lists or complex
