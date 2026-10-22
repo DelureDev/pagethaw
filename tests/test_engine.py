@@ -2,6 +2,8 @@ from dataclasses import replace
 from pathlib import Path
 import json
 import os
+import subprocess
+import sys
 import zipfile
 import xml.etree.ElementTree as ET
 
@@ -10,6 +12,29 @@ import pytest
 
 from pagethaw.engine import inspect_pdf, convert_pdf, convert_batch, W, V
 from pagethaw.fonts import read_font, normalized, missing_glyphs
+
+
+def test_optional_helper_import_cannot_change_conversion_geometry(tmp_path, face):
+    source = make_pdf(tmp_path, face)
+    script = '''
+from pathlib import Path
+import sys
+import pymupdf
+# Tight glyph boxes make this fixture sensitive to metric corrections.
+pymupdf.TOOLS.set_small_glyph_heights(True)
+pymupdf.TOOLS.unset_quad_corrections(sys.argv[1] == "True")
+from pagethaw.engine import inspect_pdf, convert_pdf
+from pagethaw.fonts import read_font
+info = inspect_pdf(Path(sys.argv[2]))
+face = read_font(Path(sys.argv[3]), installed=True)
+convert_pdf(info, Path(sys.argv[4]), {name: face for name in info.fonts})
+'''
+    outputs = [tmp_path/'core.docx', tmp_path/'optional-helper.docx']
+    for setting, output in zip(('False', 'True'), outputs):
+        subprocess.run([sys.executable, '-c', script, setting, str(source),
+                        face.path, str(output)], check=True, timeout=30)
+    with zipfile.ZipFile(outputs[0]) as core, zipfile.ZipFile(outputs[1]) as helper:
+        assert core.read('word/document.xml') == helper.read('word/document.xml')
 
 
 def test_unused_font_is_not_opened(tmp_path, face):

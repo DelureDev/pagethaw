@@ -21,6 +21,10 @@ from docx.oxml import OxmlElement, parse_xml
 from .fonts import FontFace, missing_glyphs
 from .font_match import FontProof, pdf_font_proofs
 
+# Optional PyMuPDF helpers can change this global during import. Use the core
+# metric corrections in both source installs and the lean portable runtime.
+pymupdf.TOOLS.unset_quad_corrections(False)
+
 W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 V = 'urn:schemas-microsoft-com:vml'
 R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'

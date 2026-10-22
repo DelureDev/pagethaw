@@ -4,9 +4,13 @@
 
 Current local checks on Windows, 2026-10-22:
 
-- **Passed:** 78 automated tests, including saved-font invalidation, language and
+- **Passed:** 79 automated tests, including saved-font invalidation, language and
   output preferences, subset retry, cancelled rescans, changed font bytes,
   readable missing/damaged-file errors and whitespace-only PDF font runs.
+- **Passed:** source/portable geometry diagnosis. Optional PyMuPDF helper imports
+  changed a global metric setting in the development environment. The converter
+  now explicitly uses core metric corrections; a fresh-process regression covers
+  both prior settings. The unused helper is excluded from portable packages.
 - **Passed:** 68 SHA256-distinct local PDFs exercised. 50 passed preflight;
   36 converted into 49 pages. Fourteen needed unavailable font faces and were
   not silently substituted; 18 had unsupported scans/OCR layers, rotation,

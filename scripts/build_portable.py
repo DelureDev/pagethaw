@@ -13,7 +13,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 VERSION = tomllib.loads((ROOT/'pyproject.toml').read_text(encoding='utf-8'))['project']['version']
 # Optional AI analysis is not used by PageThaw's coordinate-based converter.
-EXCLUDES = ('pymupdf.layout', 'onnxruntime', 'numpy', 'pytest', 'IPython')
+EXCLUDES = ('pymupdf.layout', 'pymupdf4llm', 'onnxruntime', 'numpy', 'pytest', 'IPython')
 PUBLIC_FILES = ('README.md', 'README.ru.md', 'LICENSE', 'THIRD_PARTY.md', 'CONTRIBUTING.md')
 NOTICE_PACKAGES = ('PyMuPDF', 'python-docx', 'fonttools', 'Pillow', 'lxml',
                    'typing_extensions', 'pyinstaller', 'pyinstaller-hooks-contrib')

@@ -1,8 +1,8 @@
 # Project state
 
 1.0 release preparation on `release/1.0.0`: owner authorized autonomous completion,
-local corpus testing and one consolidated public release. Current checks: 78 tests
-passed locally and in hosted CI; 68 distinct local documents exercised, 36 converted
+local corpus testing and one consolidated public release. Current checks: 79 tests
+passed locally (78 in the previous hosted build); 68 distinct local documents exercised, 36 converted
 into 49 pages. All 49 Word-export comparisons were visually reviewed. Fourteen
 inputs need unavailable fonts; 18 are unsupported by preflight. A whitespace-only
 font preflight defect was fixed. All original hashes are unchanged. Private evidence
@@ -26,6 +26,13 @@ Native routing_reviewer requested gpt-6.1-sol/high for independent code and
 separate corpus visual checks; both passed, lead is sole writer. Role selections
 were accepted by the runtime; no fallback used. The final release build is pending
 artifact download, local equivalence verification, publication and checksum readback.
+
+Final artifact comparison caught optional PyMuPDF helper startup changing the
+development environment's global text metrics. Source CLI/API agreed, but 14
+portable outputs had sub-point vertical changes. An explicit core-metric setting
+now removes this dependency on import side effects; an isolated-process regression
+passes. The actual portable outputs are undergoing another Word visual review,
+and a final build is required before publication. This is a bounded release fix.
 
 Public project: PageThaw (pagethaw), an offline Windows PDF-to-Word app.
 
