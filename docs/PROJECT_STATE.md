@@ -11,8 +11,12 @@ This first release targets selectable, horizontal text on consistent-sized pages
 Word desktop is the reference viewer. OCR, rotated text and interactive PDF forms
 are outside the first release. Conversion itself does not require Word.
 
-Status: v0.1.0 implementation, local tests, portable relocation test and independent
-review passed. Publishing and hosted CI verification are in progress.
+Status: v0.1.0 implementation and verification complete. Local tests (27), hosted
+Windows source tests (27), the portable relocation test, Word comparison and
+independent review passed. The uploaded ZIP was downloaded and checksum-verified.
+
+Repository: https://github.com/DelureDev/pagethaw
+Release: https://github.com/DelureDev/pagethaw/releases/tag/v0.1.0
 
 Public deliverables: source, README, AGPL license, Windows checks workflow and
 portable ZIP with executable, runtime, dependency licenses/source references and

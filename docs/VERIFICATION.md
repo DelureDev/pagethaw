@@ -22,7 +22,13 @@ Verification for v0.1.0, performed on Windows on 2026-10-22:
   underscore preservation, unusual spacing, output cleanup and comparison cancel.
 - **Passed:** portable archive audit excludes private PDFs, outputs and font files.
   The sole bundled DOCX is python-docx's upstream blank template, verified by hash.
-- Public source audit and hosted CI: recorded in the release/project state.
+- **Passed:** public Git source audit (24 text/source files; no private inputs,
+  documents, machine paths, credentials or font binaries).
+- **Passed:** GitHub Windows runner installed the public source, ran all 27 tests
+  without skips and completed the two-page synthetic conversion.
+  [Implementation CI run](https://github.com/DelureDev/pagethaw/actions/runs/39772534789).
+- **Passed:** uploaded ZIP downloaded back from GitHub and its SHA-256 matched
+  the locally tested artifact and attached checksum file.
 
 **Not run:** clean Windows VM, physical printing, LibreOffice, Word web/mobile.
 Desktop Windows x64 is the supported build. Source tests use locally installed Arial,
