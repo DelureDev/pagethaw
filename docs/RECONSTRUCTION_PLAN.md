@@ -9,7 +9,7 @@ and private samples/fonts outside Git and releases. Lead is the sole writer.
 - [x] Improve paragraph indentation/alignment and spacing without fixed text boxes.
 - [x] Add optional permitted font embedding with clear EN/RU portability feedback.
 - [x] Strengthen structural checks, regression tests and actual Word/editing review.
-- [ ] Build/test one consolidated portable update, publish and verify downloads.
+- [x] Build/test one consolidated portable update, publish and verify downloads.
 
 Acceptance: preserve source wording/emphasis and every accounted graphic; real
 paragraphs and expanding cells; reject unsupported/ambiguous layouts before output;
@@ -22,7 +22,7 @@ native routing_architect (requested Astra/low) advises on font portability. Both
 roles were accepted by runtime; exact backend identities not separately verified.
 No fallback. Independent code/visual review follows implementation.
 
-Implementation is ready for the 1.2 release candidate. Current checks: 120 tests
+PageThaw 1.2 is published. Current checks: 120 tests
 passed; 35 layout outputs match published baseline by every uncompressed DOCX
 part; 14 editable files/27 rendered pages passed independent review. Another
 8 proof pages, 9 heavily edited pages and 3 table images passed visual review.
@@ -46,4 +46,18 @@ English/Russian state and switching pass automated widget checks. A further nati
 click was stopped when the helper detected user input; the owned preview was
 closed. No user Word windows, font installations or other apps were changed.
 Private evidence remains under `.private/editable/reconstruction-*`, `grid-proof`
-and `font-portability-g`. CI/package/publication checks are pending.
+and `font-portability-g`.
+
+**Passed:** [hosted Windows tests](https://github.com/DelureDev/pagethaw/actions/runs/39827355699)
+and [build/fresh-VM checks](https://github.com/DelureDev/pagethaw/actions/runs/39827355708).
+The exact downloaded EXE/ZIP passed local relocation with clean preferences,
+Windows-only PATH, Cyrillic paths and synthetic font/table smoke checks. Release
+EXE output matches all 14 reviewed editable documents and all 35 layout baseline
+documents by every internal DOCX part. Original input hashes stayed unchanged.
+
+Implementation `0dcb8b52193902f4b70741c33f7d87e7b612619d` was fast-forwarded into
+main and published as [v1.2.0](https://github.com/DelureDev/pagethaw/releases/tag/v1.2.0).
+Public EXE, ZIP and checksums were downloaded again and match the exact tested
+assets. Private proof: `reconstruction-public-download/verification.json` under
+`.private/editable`; hashes and limits are in [verification](VERIFICATION.md).
+No private fonts/documents were published. No remaining work in this mission.

@@ -21,7 +21,27 @@ Current local checks on Windows, 2026-10-22:
   recheck after repairing a separator wrap. Russian native UI inspected and captured;
   EN/RU widget switching/persistence passed. Further native input stopped when user
   activity was detected.
-- **Not run yet:** hosted build/fresh-VM, downloaded-binary and public-readback checks.
+- **Passed:** [hosted Windows tests](https://github.com/DelureDev/pagethaw/actions/runs/39827355699)
+  and [build / fresh Windows VM](https://github.com/DelureDev/pagethaw/actions/runs/39827355708)
+  from commit `0dcb8b52193902f4b70741c33f7d87e7b612619d`. Both formats passed on a
+  separate runner without Word/private fonts or external Python on PATH. Bundled
+  runtime imports were checked; developer tools remain installed on the hosted image.
+- **Passed:** exact downloaded EXE/ZIP relocated locally with clean preferences,
+  Windows-only PATH and a Cyrillic path. Both modes, repeated conversion, DOCX-only
+  output, notices, EN/RU widgets, font embedding and ruled tables passed smoke checks.
+- **Passed:** exact release EXE reproduces every uncompressed DOCX part of all 14
+  reviewed editable documents and all 35 layout baseline documents. Source hashes
+  stayed unchanged.
+
+Release artifact SHA256:
+
+- EXE: `6ad44c60bc477e8843626b39286cc38ee9bfef2767d1d4dccce94ec1b14a721c`
+- ZIP: `578442fa63879d6a1fa1e1c6d2739cb301f3637f9c589fc7d788595df2269dc5`
+
+**Passed:** [published v1.2.0](https://github.com/DelureDev/pagethaw/releases/tag/v1.2.0)
+EXE, ZIP and checksums downloaded after publication and matched the tested hosted
+artifacts. EXE: 46,288,554 bytes; ZIP: 46,541,393 bytes. No private fonts or PDFs
+were committed or bundled.
 
 Fonts are optional and only eligible static TrueType faces are embedded. The
 private original Sirius faces are skipped because they allow preview/print only.

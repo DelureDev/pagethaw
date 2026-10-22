@@ -1,12 +1,21 @@
 # Project state
 
-The 1.2 candidate on `feature/document-reconstruction` improves paragraph/table
-reconstruction and adds optional permitted font embedding. Implementation, 120
-tests, independent code review, 27-page corpus review and editing stress checks
-passed. Font portability was verified in Word with an uninstalled synthetic font,
-including a newly typed Cyrillic glyph after save/reopen. Packaging, hosted clean-VM
-and public download verification remain pending. See [current plan](RECONSTRUCTION_PLAN.md)
-and [verification](VERIFICATION.md). The 1.1 results below are historical baseline.
+**PageThaw 1.2 is published:** [release and downloads](https://github.com/DelureDev/pagethaw/releases/tag/v1.2.0).
+It improves paragraph/table reconstruction and adds optional permitted font
+embedding. Implementation commit `0dcb8b52193902f4b70741c33f7d87e7b612619d`
+is integrated into local/public main. All 120 tests, independent code review,
+27-page corpus review and editing stress checks passed. Font portability was
+verified in Word with an uninstalled synthetic font, including a newly typed
+Cyrillic glyph after save/reopen. Hosted build/fresh-VM and both portable-format
+relocation checks passed. The exact release EXE matches all 14 reviewed editable
+documents and all 35 layout baseline documents by every uncompressed DOCX part.
+Public EXE, ZIP and checksums were downloaded again and match the tested bytes.
+This mission is complete. See [completed plan](RECONSTRUCTION_PLAN.md) and
+[verification](VERIFICATION.md). Private evidence is under `.private/editable`;
+use `.private/editable/reconstruction-public-download` for the verified local app.
+Three reviewed sample DOCX files are in `output/editable-reviewed-1.2`; prior
+samples and all originals remain unchanged.
+The 1.1 results below are historical baseline.
 
 **PageThaw 1.1 is published:** [release and downloads](https://github.com/DelureDev/pagethaw/releases/tag/v1.1.0).
 Normal paragraph-based Word editing after feedback
@@ -39,6 +48,9 @@ window may remain open; do not confuse it with the final downloaded build.
 - Output folders contain only DOCX files. Repeated conversion preserves existing
   files with numbered names. Retry targets failed/cancelled files only.
 - English and Russian interface, clear details for errors and optional Word comparison.
+- Optional font embedding is off by default. Only eligible static TrueType faces
+  are included; skipped faces get a visible notice. Original Sirius fonts remain
+  private and require installation because their permissions allow preview/print only.
 
 Selectable horizontal text and consistent-sized pages are supported. Scans/OCR,
 rotated text and interactive PDF fields remain outside scope. Conversion does not
@@ -92,3 +104,13 @@ conversion approach and `routing_reviewer` (requested Sol/high) independently
 reviewed code and all 27 corpus pages. Both roles were runtime-accepted; exact
 backend identities were not separately verified. Findings were fixed/retested,
 final reviews passed, and no routing fallback was used. The lead remained sole writer.
+
+For 1.2, native `routing_scout` (requested Luna/high) classified the corpus,
+`routing_architect` (requested Astra/low) advised on font portability, and two
+`routing_reviewer` agents (requested Sol/high) independently reviewed code and
+rendered pages. Runtime accepted these roles; exact backend identities were not
+separately verified. Border width/schema issues, a wrapped separator and an
+inadequate initial font proof were fixed and rechecked. Final reviews passed;
+no fallback. The lead was the sole writer. The native Russian preview was
+inspected; further native interaction stopped on detected user input. EN/RU
+switching/persistence passed automated widget checks. User apps stayed untouched.
