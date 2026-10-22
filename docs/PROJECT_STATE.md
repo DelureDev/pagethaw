@@ -17,6 +17,33 @@ Three reviewed sample DOCX files are in `output/editable-reviewed-1.2`; prior
 samples and all originals remain unchanged.
 The 1.1 results below are historical baseline.
 
+## Post-release typography report — diagnosed, not fixed
+
+On 2026-10-22 the owner supplied an original PDF and its actual 1.2 DOCX for
+comparison. All three pages of each were inspected after isolated desktop Word
+export at equal scale. **Passed:** source sizes (7.5 pt body / 10 pt heading),
+source-file hash preservation, and document/style XML equality to the reviewed
+fixture after normalizing font names. **Failed:** font identity and spacing fidelity.
+The supplied DOCX's regular family resolves locally to Sirius 0.950 rather than
+the verified 1.006 outlines; its bold family has both versions installed.
+No font installation or original document was changed.
+
+Independent read-only `routing_reviewer` (requested Sol/high; runtime accepted,
+backend identity not separately verified) confirmed that measured paragraph
+leading remains `AT_LEAST` in `Writer.text`. Word expands it to the chosen font's
+natural height. Thirty-four multiline paragraphs specify 8.7–9.2 pt leading;
+rendering with verified original fonts still drifts vertically, and drifts more
+than with the older font. A font-only fix is insufficient. Earlier editability
+checks did not establish source-spacing fidelity.
+
+Next: validate a bounded leading correction for reliably measured narrative
+paragraphs against tall glyphs, descenders, inserted sentences and enlarged text.
+Do not globally force exact line heights or constrain expanding form/table rows.
+No grouping defect was established. This turn is diagnostic: **not run** a fix,
+new test suite or release. Private evidence and both sets of three-page renders
+are in `.private/editable/user-miniphlebectomy-12`. Preserve layout is unaffected
+by this diagnosis; it was not rerun for this report.
+
 **PageThaw 1.1 is published:** [release and downloads](https://github.com/DelureDev/pagethaw/releases/tag/v1.1.0).
 Normal paragraph-based Word editing after feedback
 about floating text boxes. Local implementation, 97 tests, independent code review,
