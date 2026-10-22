@@ -1,6 +1,6 @@
 # Release verification
 
-## 1.0 candidate — consolidated reliability checks
+## 1.0 — consolidated reliability checks
 
 Current local checks on Windows, 2026-10-22:
 
@@ -20,6 +20,9 @@ Current local checks on Windows, 2026-10-22:
   converted document was exported and reviewed separately.
 - **Passed:** source hashes unchanged for all 68 inputs. The final output folder
   contains only 36 DOCX files. No private sources, fonts or comparisons are public.
+- **Passed:** real Windows input-file lock, damaged/missing input, blocked output
+  path, continuing after per-file failures, and cancellation of a 50-item batch
+  with 49 items correctly cancelled and no partial documents left behind.
 - **Passed:** independent code review after retry/cancel fixes and standalone
   regression-fixture correction. Independent visual review covered 47 pages;
   the lead reviewed the other two, plus representative spot checks.
@@ -28,7 +31,12 @@ Current local checks on Windows, 2026-10-22:
   existing files, DOCX-only output, notices export, bundled-runtime import paths,
   and packaged EN/RU widget smoke. The native app was also visually checked in
   both languages; the public screenshot is the empty 1.0 Russian interface.
-- **Pending:** final hosted Windows binary checks and uploaded-asset verification.
+- **Passed:** [hosted candidate build and fresh-VM binary tests](https://github.com/DelureDev/pagethaw/actions/runs/39792308224).
+  A separate Windows Server 2025 VM tested both artifacts without Word or private
+  fonts, using a clean preference directory, external Python unavailable on PATH,
+  and imports verified inside the frozen runtime. The hosted image still contains
+  developer tools; this is not a claim that Python was uninstalled from the VM.
+  The release notes identify the final artifact build/checksums.
 
 **Not run:** physical printing, Windows Sandbox, Word web/mobile or LibreOffice.
 The app remains unsigned. Review your real output; passing this corpus does not

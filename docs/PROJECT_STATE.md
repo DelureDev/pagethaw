@@ -1,28 +1,31 @@
 # Project state
 
-1.0 work in progress on `release/1.0.0`: owner authorized autonomous completion
-and testing with local PDFs. Consolidate into one release after gates pass.
-Current local checks: 78 tests passed; 68 distinct local documents exercised,
-35 converted (48 pages), 18 unsupported by preflight, other files need fonts.
-One whitespace-only-font preflight defect was found and fixed; final corpus
-rerun and Word visual review are in progress. Evidence is private under
-`.private/v1.0.0`. These are current results, not a release approval.
+1.0 release preparation on `release/1.0.0`: owner authorized autonomous completion,
+local corpus testing and one consolidated public release. Current checks: 78 tests
+passed locally and in hosted CI; 68 distinct local documents exercised, 36 converted
+into 49 pages. All 49 Word-export comparisons were visually reviewed. Fourteen
+inputs need unavailable fonts; 18 are unsupported by preflight. A whitespace-only
+font preflight defect was fixed. All original hashes are unchanged. Private evidence
+is under `.private/v1.0.0`; no private material is included in Git or releases.
 
 New preferences revalidate saved font-file hashes and source identity (or fresh
 glyph proof). Fonts remain visible; output stays DOCX-only. Retry preserves
-successful files. Independent review found unused-font retry and cancelled-rescan
-state issues; fixes/regressions landed locally and re-review is pending.
+successful files. Independent review passed after fixing unused-font retry,
+cancelled-rescan state and a test fixture's order dependency.
 
-No usable local Sandbox/VM was found by the read-only audit. A fresh hosted
-Windows binary test is planned with external Python unavailable on PATH and
-module paths verified inside the bundled runtime. Physical printing/alternate
-Word viewers remain outside release scope.
+No usable local Sandbox/VM was found by the read-only audit. Fresh hosted Windows
+VM testing passed for both portable formats: no Word/private fonts, clean settings,
+external Python unavailable on PATH, bundled module locations verified. The hosted
+image still has developer tools installed; no claim of uninstalling Python is made.
+Real Windows locks and mixed failures, blocked folders and 50-item cancellation
+also passed. Physical printing/alternate Word viewers remain outside release scope.
 
 Delegation: native routing_scout roles requested gpt-6-luna/high for bounded PDF
 and Windows-environment inventories; both completed without file mutations.
 Native routing_reviewer requested gpt-6.1-sol/high for independent code and
-separate corpus visual checks; lead is sole writer. Role selections were accepted
-by the runtime; no fallback used. Final results will replace this in-progress note.
+separate corpus visual checks; both passed, lead is sole writer. Role selections
+were accepted by the runtime; no fallback used. The final release build is pending
+artifact download, local equivalence verification, publication and checksum readback.
 
 Public project: PageThaw (pagethaw), an offline Windows PDF-to-Word app.
 
