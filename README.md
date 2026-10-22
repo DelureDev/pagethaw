@@ -53,7 +53,7 @@ to switch the interface; your choice is remembered.
 <details>
 <summary>Preview the Russian interface</summary>
 
-![PageThaw — RU](docs/images/app-ru.jpg)
+![PageThaw — RU](docs/images/app-ru.png)
 
 </details>
 

@@ -28,10 +28,13 @@ Get-ChildItem Env: | Where-Object { $_.Name -like 'PYTHON*' -or $_.Name -eq 'VIR
     [Environment]::SetEnvironmentVariable($_.Name, $null, 'Process')
 }
 try {
-    $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+    # The Python launcher can live in the Windows root on hosted images.
+    # Keep only System32; the app must use its bundled interpreter.
+    $env:PATH = "$env:SystemRoot\System32"
     $env:LOCALAPPDATA = Join-Path $work 'clean-profile'
     New-Item -ItemType Directory -Path $env:LOCALAPPDATA | Out-Null
-    if (Get-Command python, python3, py -ErrorAction SilentlyContinue) { throw 'External Python is still available on PATH.' }
+    $external = @(Get-Command python, python3, py -CommandType Application -ErrorAction SilentlyContinue)
+    if ($external.Count) { throw ('External Python is still available on PATH: '+($external.Source -join ', ')) }
     if ($FreshRunner) {
         if ($env:GITHUB_ACTIONS -ne 'true') { throw 'FreshRunner is only valid on an ephemeral GitHub runner.' }
         if (Test-Path 'Registry::HKEY_CLASSES_ROOT\Word.Application') { throw 'Word is installed on this runner.' }

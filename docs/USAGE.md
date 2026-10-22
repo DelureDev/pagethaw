@@ -23,7 +23,8 @@ guarantee.
 Open the single `PageThaw-…-windows-x64.exe` from the latest release. It includes
 its runtime and needs no installer or adjacent support folder. Startup extracts
 runtime files to Windows' temporary directory and can take a few seconds. Language
-preferences are stored separately in your Windows account, not beside the EXE.
+and output-folder preferences are stored separately in your Windows account,
+not beside the EXE, in `%LOCALAPPDATA%/PageThaw/settings.json`.
 
 The optional ZIP contains a folder edition with the same features. Extract it
 fully and keep `_internal` beside `PageThaw.exe`. Both builds omit optional AI
@@ -33,6 +34,11 @@ This packaging does not add OCR or AI-based table reconstruction.
 Add PDFs to scan automatically. The **Fonts** section always shows the mappings,
 warnings and rescan button. **Choose / install font…** opens the font picker. **Options…**
 contains the form-line option, graphics resolution and optional Word comparison.
+
+Select a file and use **Details** (or double-click it) to read its full status.
+After resolving a temporary file-access problem, **Retry failed** converts only
+failed or cancelled items. Earlier successes remain untouched. If an input PDF
+changed, scan again first. Cancelling a scan requires a completed rescan.
 
 ## Font handling
 
@@ -54,6 +60,13 @@ family/style can make Word choose the wrong version, so remove conflicting versi
 in Windows Fonts and rescan, or choose a different family. PageThaw does not remove
 or rename your fonts. Name matches with unverified/different glyphs still require
 replacement approval.
+
+Approved choices are remembered locally. A saved choice is reused only while its
+font file is still installed, unchanged, conflict-free and covers the characters.
+Substitutes are limited to the same PDF contents you approved; other documents
+need a new choice unless their glyphs can be verified against the saved font.
+Deleting `settings.json` resets these preferences; it does not delete documents
+or uninstall fonts.
 
 Adding a font asks before installing an unchanged copy for the current Windows
 account. Fonts are never embedded in the DOCX or included with the app. Recipients
@@ -138,6 +151,8 @@ you want `pagethaw-report.json` for automation; this optional mode requires a fo
 without an existing report. The GUI never enables report files.
 
 ## Build and test
+
+For candidate builds and release gates, see [Release process](RELEASING.md).
 
 ```powershell
 python -m pytest -q

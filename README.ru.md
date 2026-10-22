@@ -53,7 +53,7 @@ Windows 10/11 x64 · Бесплатно, с открытым кодом · Engli
 <details>
 <summary>Посмотреть интерфейс на русском</summary>
 
-![PageThaw — RU](docs/images/app-ru.jpg)
+![PageThaw — RU](docs/images/app-ru.png)
 
 </details>
 

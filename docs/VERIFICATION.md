@@ -1,5 +1,39 @@
 # Release verification
 
+## 1.0 candidate — consolidated reliability checks
+
+Current local checks on Windows, 2026-10-22:
+
+- **Passed:** 78 automated tests, including saved-font invalidation, language and
+  output preferences, subset retry, cancelled rescans, changed font bytes,
+  readable missing/damaged-file errors and whitespace-only PDF font runs.
+- **Passed:** 68 SHA256-distinct local PDFs exercised. 50 passed preflight;
+  36 converted into 49 pages. Fourteen needed unavailable font faces and were
+  not silently substituted; 18 had unsupported scans/OCR layers, rotation,
+  interactive fields or unmapped characters. This is a mixed-corpus workflow
+  test, not a 100% conversion-success claim.
+- **Passed:** all 49 converted pages exported through isolated desktop Word
+  instances and inspected against the original at the same scale. Page counts,
+  wrapping, form blanks, bold, tables/borders and graphics stayed consistent.
+  Small baseline/glyph-rendering differences remain. Final regenerated DOCX
+  parts were byte-identical for the 35 previously reviewed documents; the newly
+  converted document was exported and reviewed separately.
+- **Passed:** source hashes unchanged for all 68 inputs. The final output folder
+  contains only 36 DOCX files. No private sources, fonts or comparisons are public.
+- **Passed:** independent code review after retry/cancel fixes and standalone
+  regression-fixture correction. Independent visual review covered 47 pages;
+  the lead reviewed the other two, plus representative spot checks.
+- **Passed:** local single EXE and folder ZIP outside the source tree, Windows-only
+  PATH, no Python environment variables, repeat conversion and preservation of
+  existing files, DOCX-only output, notices export, bundled-runtime import paths,
+  and packaged EN/RU widget smoke. The native app was also visually checked in
+  both languages; the public screenshot is the empty 1.0 Russian interface.
+- **Pending:** final hosted Windows binary checks and uploaded-asset verification.
+
+**Not run:** physical printing, Windows Sandbox, Word web/mobile or LibreOffice.
+The app remains unsigned. Review your real output; passing this corpus does not
+guarantee every PDF or pixel-identical rendering.
+
 ## v0.3.1 — justified spacing and visible font choices
 
 Checks performed on Windows on 2026-10-22:

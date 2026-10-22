@@ -42,5 +42,7 @@ jobs:
         if: always()
         with:
           name: portable-verification
-          path: ${{ runner.temp }}/portable-results
+          path: |
+            ${{ runner.temp }}/portable-results/portable-result.json
+            ${{ runner.temp }}/portable-results/Portable проверка/smoke-*/**
           if-no-files-found: warn
