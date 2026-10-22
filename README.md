@@ -44,7 +44,8 @@ to switch the interface; your choice is remembered.
 
 **Editable text** creates normal paragraphs and expanding table cells for blanks.
 Type in a blank cell; longer entries move the following content down. This mode
-supports simple, single-column forms. Spacing and page counts can change.
+supports single-column forms and simple tables with complete row/column borders.
+Paragraph indents and alignment are reconstructed. Spacing and page counts can change.
 
 **Preserve layout** keeps the original placement with text boxes. Choose it when
 appearance matters more than extensive editing. The app never silently switches modes.
@@ -54,6 +55,7 @@ appearance matters more than extensive editing. The app never silently switches 
 | Batch conversion | Convert several PDFs in one run; see their status in the app. |
 | Two conversion modes | Flowing paragraphs for editing, or positioned text for layout. |
 | Font choices | Match regular, bold and italic faces, or approve a substitute. |
+| Optional font embedding | Include permitted TrueType fonts so recipients can edit without installing them. |
 | Form blank lines | Optionally turn underscore blanks into continuous lines. |
 | Page comparison | With desktop Word installed, generate original/export image pairs. |
 
@@ -75,8 +77,9 @@ whole folder and keep `_internal` beside its `PageThaw.exe`.
 - Editable mode rejects ambiguous columns, complex grids and overlapping graphics.
   It does not reconstruct native Word footnotes or automatic numbered lists.
 - In Preserve layout mode, text boxes **do not reflow**. Long edits may need manual adjustment.
-- Missing or different fonts can change spacing. Fonts are not bundled or embedded;
-  someone opening your DOCX needs the same fonts installed.
+- Missing or different fonts can change spacing. Enable **Include fonts in Word files**
+  for permitted static TrueType fonts. Restricted or unsupported fonts are skipped
+  with a visible notice; recipients still need those installed. [Font details](docs/FONTS.md).
 - Rotated text, mixed page sizes and interactive PDF fields are not supported yet.
 - The portable app is unsigned. Follow your organization's software policy if
   Windows blocks it. Checksums are included in each release.

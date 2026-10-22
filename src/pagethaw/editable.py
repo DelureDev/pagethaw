@@ -10,6 +10,7 @@ from collections import Counter
 from dataclasses import dataclass
 import io
 import re
+from statistics import median
 
 import pymupdf
 from docx import Document
@@ -17,6 +18,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Pt, RGBColor
+from .ruled_tables import find_grids, partition
 
 
 class UnsupportedLayout(ValueError):
@@ -89,7 +91,11 @@ def graphics_on(page, lines):
     """Separate simple outer boxes/rules from standalone graphics such as logos."""
     boxes, rules, rects = [], [], []
     drawings = page.get_drawings()
-    for draw in drawings:
+    grids = find_grids(drawings)
+    handled = {index for g in grids for index in g.drawings}
+    for index, draw in enumerate(drawings):
+        if index in handled:
+            continue
         rect = pymupdf.Rect(draw['rect'])
         items = draw['items']
         if draw['type'] == 's' and len(items) == 1 and items[0][0] == 're' and rect.width > 40 and rect.height > 25:
@@ -101,6 +107,14 @@ def graphics_on(page, lines):
                 reject('vertical or degenerate drawing paths are not supported.')
             rects.append(rect)
     rects.extend(pymupdf.Rect(i['bbox']) for i in page.get_image_info())
+    for i, grid in enumerate(grids):
+        if any(intersects(grid.bbox, other.bbox) for other in grids[i+1:]):
+            reject('nested or overlapping table borders are not supported.')
+        if any(grid.bbox.intersects(r+(-.1, -.1, .1, .1)) for r in boxes+rules+rects):
+            reject('a ruled table contains unsupported graphics.')
+        if any(min(l.bbox.y1, grid.bbox.y1)-max(l.bbox.y0, grid.bbox.y0) > 1 and
+               (l.bbox.x1 < grid.bbox.x0 or l.bbox.x0 > grid.bbox.x1) for l in lines):
+            reject('text beside a ruled table needs manual reconstruction.')
     for i, box in enumerate(boxes):
         if any(intersects(box, other) for other in boxes[i+1:]):
             reject('nested or overlapping table borders are not supported.')
@@ -128,7 +142,7 @@ def graphics_on(page, lines):
             reject('graphics overlap selectable text.')
         if rect.height > page.rect.height*.5:
             reject('a large graphic needs manual placement.')
-    return boxes, rules, clusters
+    return boxes, rules, clusters, grids
 
 
 def check_columns(lines):
@@ -167,10 +181,22 @@ def element(name, **attrs):
 
 
 def cell_margins(cell, value=0):
+    pr = cell._tc.get_or_add_tcPr()
+    for old in pr.findall(qn('w:tcMar')):
+        pr.remove(old)
     margins = element('tcMar')
     for edge in ('top', 'left', 'bottom', 'right'):
         margins.append(element(edge, w=value, type='dxa'))
-    cell._tc.get_or_add_tcPr().append(margins)
+    pr.append(margins)
+
+
+def cell_borders(cell, borders):
+    pr = cell._tc.get_or_add_tcPr()
+    for old in pr.findall(qn('w:tcBorders')):
+        pr.remove(old)
+    pr.insert_element_before(borders, 'w:shd', 'w:noWrap', 'w:tcMar', 'w:textDirection',
+                             'w:tcFitText', 'w:vAlign', 'w:hideMark', 'w:headers',
+                             'w:cellIns', 'w:cellDel', 'w:cellMerge', 'w:tcPrChange')
 
 
 def table_at(parent, widths, border=False):
@@ -245,15 +271,44 @@ class Writer:
         pf.widow_control = True
         return para
 
-    def text(self, parent, lines, before=0, title=False):
+    def text(self, parent, lines, before=0, title=False, left=None, width=None):
         self.last_field = None
         para = self.paragraph(parent, max(l.size for l in lines), before)
         first = lines[0]
+        left = self.left if left is None else left
+        width = self.width if width is None else width
+        pf = para.paragraph_format
+        starts = [l.bbox.x0 for l in lines]
+        ends = [l.bbox.x1 for l in lines]
+        centers = [(a+b)/2 for a, b in zip(starts, ends)]
+        tolerance = max(2, first.size*.4)
         if title:
             para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-        elif first.bbox.x0-self.left > self.width*.13 and first.bbox.width < self.width*.8:
+        elif len(lines) == 1 and re.fullmatch(r'(?:[-–—.·=]\s*){5,}', first.text.strip()):
+            # Decorative separators have no paragraph indent. Keeping their
+            # literal characters in the full text width avoids a stray last dash.
             para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        para.paragraph_format.keep_with_next = first.bold and len(lines) == 1
+        elif (all(abs(c-(left+width/2)) < tolerance for c in centers) and
+              all(l.bbox.width < width*.85 for l in lines) and
+              (len(lines) > 1 or first.bold or first.text.lstrip().startswith('('))):
+            para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        elif all(abs(x-(left+width)) < tolerance for x in ends) and min(starts)-left > width*.15:
+            para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        else:
+            # Reconstruct the continuation margin, then a first-line/hanging
+            # indent. An indented address is not automatically a centered title.
+            continuation = median(starts[1:]) if len(starts) > 1 else starts[0]
+            inset = max(0, min(width*.8, continuation-left))
+            pf.left_indent = Pt(inset)
+            pf.first_line_indent = Pt(max(-inset, min(width*.4, starts[0]-continuation)))
+            if len(lines) >= 3 and all(abs(x-(left+width)) < tolerance for x in ends[:-1]):
+                para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        if len(lines) > 1:
+            baselines = [l.spans[0]['origin'][1] for l in lines]
+            leading = median(b-a for a, b in zip(baselines, baselines[1:]))
+            if first.size <= leading <= first.size*2:
+                pf.line_spacing = Pt(leading)
+        pf.keep_with_next = first.bold and len(lines) == 1
         for index, line in enumerate(lines):
             if index:
                 # Keep hyphens, but never concatenate Cyrillic/Latin words merely
@@ -262,8 +317,12 @@ class Writer:
                 if previous and not previous.endswith(('-', '\u00ad')):
                     self.run(para, line.spans[0], ' ')
             previous_x = None
-            for span in line.spans:
+            for si, span in enumerate(line.spans):
                 text = ''.join(c['c'] for c in span['chars'])
+                if si == 0:
+                    text = text.lstrip()
+                if si == len(line.spans)-1:
+                    text = text.rstrip()
                 if previous_x is not None and span['bbox'][0]-previous_x > span['size']*.65 and text and not text[0].isspace():
                     self.run(para, span, ' ')
                 self.run(para, span, re.sub(r'\s+', ' ', text))
@@ -305,7 +364,7 @@ class Writer:
                 self.field_count += 1
                 borders = element('tcBorders')
                 borders.append(element('bottom', val='single', sz=4, color='000000'))
-                cell._tc.get_or_add_tcPr().append(borders)
+                cell_borders(cell, borders)
                 self.run(para, cs[0][1], ' ')
             else:
                 current, text = cs[0][1], ''
@@ -369,8 +428,34 @@ class Writer:
         pix = page.get_pixmap(matrix=pymupdf.Matrix(self.dpi/72, self.dpi/72), clip=rect+(-.5, -.5, .5, .5), alpha=False)
         para.add_run().add_picture(io.BytesIO(pix.tobytes('png')), width=Pt(min(width or rect.width, self.width)))
 
-    def flow(self, parent, lines, width, top=None):
+    def grid(self, parent, grid, cells):
+        inset = max(0, grid.xs[0]-self.left)
+        scale = min(1, (self.width-inset)/grid.bbox.width)
+        widths = [(b-a)*scale for a, b in zip(grid.xs, grid.xs[1:])]
+        table = table_at(parent, widths)
+        table._tbl.tblPr.find(qn('w:tblInd')).set(qn('w:w'), str(round(inset*20)))
+        for _ in cells[1:]:
+            table.add_row()
+        for r, row in enumerate(cells):
+            for c, lines in enumerate(row):
+                cell = table.cell(r, c)
+                cell.width = Pt(widths[c])
+                cell_margins(cell, 50)
+                borders = element('tcBorders')
+                for edge, (size, color) in [('top', grid.horizontal[r]), ('bottom', grid.horizontal[r+1]),
+                                             ('left', grid.vertical[c]), ('right', grid.vertical[c+1])]:
+                    borders.append(element(edge, val='single', sz=size, color=color))
+                cell_borders(cell, borders)
+                if lines:
+                    self.flow(cell, lines, widths[c]-5, grid.ys[r], left=grid.xs[c]+2.5)
+                else:
+                    self.paragraph(cell, 8)
+        table_separator(parent)
+        return table
+
+    def flow(self, parent, lines, width, top=None, left=None):
         check_columns(lines)
+        left = self.left if left is None else left
         self.last_field = None
         pending = []
         previous = None
@@ -378,7 +463,7 @@ class Writer:
         def flush():
             nonlocal pending
             if pending:
-                self.text(parent, pending, before)
+                self.text(parent, pending, before, left=left, width=width)
                 pending = []
         for line in lines:
             cancelled(self.cancel)
@@ -387,10 +472,10 @@ class Writer:
                         (previous.bold and not line.bold) or
                         bool(re.match(r'^\s*(?:[-•·]|\d+[.)])\s', line.text)) or
                         (previous is not None and bool(re.match(r'^\s*[-•·]\s', previous.text)) and
-                         previous.bbox.x1 < self.left+width-line.size*4) or
+                         previous.bbox.x1 < left+width-line.size*4) or
                         gap > line.size*.6 or
-                        (previous.bbox.x1 < self.left+width-max(line.size*4, width*.12) and
-                         previous.bbox.x0 < self.left+width*.1 and
+                        (previous.bbox.x1 < left+width-max(line.size*4, width*.12) and
+                         previous.bbox.x0 < left+width*.1 and
                          (previous.text.rstrip().endswith(('.', ':', ';', ')')) or
                           line.text.lstrip()[:1].isupper() or re.match(r'^\s*[\w -]{2,35}:', line.text))))
             if boundary:
@@ -422,8 +507,13 @@ def build_document(pdf, mapping, dpi=144, cancel=None):
     for page in pdf:
         cancelled(cancel)
         lines = lines_on(page)
-        boxes, rules, graphics = graphics_on(page, lines)
-        pages.append((lines, boxes, rules, graphics))
+        boxes, rules, graphics, grids = graphics_on(page, lines)
+        tables = [(grid, *partition(grid, lines, reject)) for grid in grids]
+        consumed = {item for _, _, ids in tables for item in ids}
+        sequence = [(l.bbox.y0, [l]) for l in lines if id(l) not in consumed]
+        sequence += [(g.ys[0], [l for row in cells for cell in row for l in cell]) for g, cells, _ in tables]
+        reading = [l for _, group in sorted(sequence, key=lambda pair: pair[0]) for l in group]
+        pages.append((lines, boxes, rules, graphics, tables, reading))
     all_lines = [l for lines, *_ in pages for l in lines if l.text.strip()]
     left = min(72, max(12, min(l.bbox.x0 for l in all_lines)))
     right = min(72, max(12, pdf[0].rect.width-max(l.bbox.x1 for l in all_lines)))
@@ -442,7 +532,7 @@ def build_document(pdf, mapping, dpi=144, cancel=None):
     writer = Writer(doc, mapping, width, left, dpi, cancel)
     source_chars = Counter(c['c'] for lines, *_ in pages for l in lines for s in l.spans for c in s['chars'] if not c['c'].isspace())
     removed = Counter()
-    for page, (lines, boxes, rules, graphics) in zip(pdf, pages):
+    for page, (lines, boxes, rules, graphics, tables, reading) in zip(pdf, pages):
         # Continue ordinary body pages; a new graphic/title header retains a page
         # boundary. This mode deliberately allows the page count to change.
         body_size = sorted(l.size for l in lines)[len(lines)//2]
@@ -451,6 +541,9 @@ def build_document(pdf, mapping, dpi=144, cancel=None):
             doc.add_page_break()
         consumed = set()
         events = []
+        for grid, cells, ids in tables:
+            consumed.update(ids)
+            events.append((grid.ys[0], 'grid', (grid, cells)))
         for graphic in graphics:
             title = [l for l in lines if l.bbox.x0 > graphic.x1+5 and
                      l.bbox.y0 < graphic.y1+20 and l.bbox.y1 > graphic.y0]
@@ -509,17 +602,21 @@ def build_document(pdf, mapping, dpi=144, cancel=None):
                 if doc.paragraphs:
                     doc.paragraphs[-1].paragraph_format.space_after = Pt(3)
                 table = table_at(doc, [width], border=True)
-                writer.flow(table.cell(0, 0), inner, width-5, box.y0)
+                writer.flow(table.cell(0, 0), inner, width-5, box.y0, left=box.x0+2.5)
                 table_separator(doc)
                 last_bottom = box.y1
             elif kind == 'image':
                 writer.image(doc, page, data)
                 last_bottom = data.y1
+            elif kind == 'grid':
+                grid, cells = data
+                writer.grid(doc, grid, cells)
+                last_bottom = grid.ys[-1]
             else:
                 table = table_at(doc, [min(width, data.width)])
                 borders = element('tcBorders')
                 borders.append(element('bottom', val='single', sz=4, color='000000'))
-                table.cell(0, 0)._tc.get_or_add_tcPr().append(borders)
+                cell_borders(table.cell(0, 0), borders)
                 writer.paragraph(table.cell(0, 0), 7.5)
                 table_separator(doc)
                 last_bottom = data.y1
@@ -534,8 +631,8 @@ def build_document(pdf, mapping, dpi=144, cancel=None):
     # character with the extracted reading sequence, rather than trusting only
     # a ledger written by the emitter itself.
     source_signature = []
-    for lines, *_ in pages:
-        for line in lines:
+    for *_, reading in pages:
+        for line in reading:
             blanks = {i for m in re.finditer(r'(?<!\w)_{3,}(?!\w)', line.text) for i in range(m.start(), m.end())}
             index = 0
             for span in line.spans:

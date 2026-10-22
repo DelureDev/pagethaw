@@ -11,7 +11,10 @@ of overflowing a text box. Font choices and emphasis remain explicit. Logos are
 embedded inline images. Pagination and spacing can differ from the PDF.
 
 This is a conservative reconstruction for single-column forms, with an optional
-logo/title header and simple outer form borders. Ambiguous columns, complex grids,
+logo/title header, simple outer form borders and complete ruled tables. Table cells
+grow with editing; merged cells, partial grids and graphics inside tables remain
+unsupported. Paragraph indents, hanging indents, alignment and leading are inferred
+from source geometry. Ambiguous columns, complex grids,
 overlapping graphics and unsupported drawing paths fail with a reason. There is
 no automatic fallback to the other mode. Footnotes and list numbers remain ordinary
 text, not native Word footnote/list fields. Source page boundaries may be removed
@@ -84,9 +87,12 @@ Deleting `settings.json` resets these preferences; it does not delete documents
 or uninstall fonts.
 
 Adding a font asks before installing an unchanged copy for the current Windows
-account. Fonts are never embedded in the DOCX or included with the app. Recipients
-need the same font faces installed. Variable fonts and `.ttc` collections are not
-supported in this release; use individual static faces.
+account. Fonts are never included with the app. **Include fonts in Word files when
+editing is permitted** optionally embeds the full used static TrueType faces in
+each DOCX. A visible notice and file **Details** identify skipped faces; recipients
+still need those installed. This option is off initially and remembered. It never
+changes your font choices or licensing flags. [Permissions and compatibility](FONTS.md).
+Variable fonts and `.ttc` collections are not supported; use individual static faces.
 
 ## Comparing with the PDF
 
@@ -148,6 +154,10 @@ Convert with installed identity matches, or supply an explicit font mapping:
 ```powershell
 python -m pagethaw --convert "C:\Documents\form.pdf" --mode editable --output "C:\Documents\converted" --font-map "font-map.json"
 ```
+
+Add `--embed-fonts` to include permitted full TrueType faces. CLI results list
+`embedded_fonts` and `font_embedding_skipped`; a skipped font does not fail an
+otherwise valid conversion. No extra report files are created unless requested.
 
 Example `font-map.json` (use the **actual font names reported by --inspect**):
 

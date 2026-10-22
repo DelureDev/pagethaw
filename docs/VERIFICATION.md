@@ -1,5 +1,33 @@
 # Release verification
 
+## 1.2 — reconstruction and font portability
+
+Current local checks on Windows, 2026-10-22:
+
+- **Passed:** 120 automated tests and synthetic application smoke, including
+  complete ruled grids, cell order, expanding rows, unsupported path rejection,
+  paragraph indents and permissions/OPC/hash checks for embedded fonts.
+- **Passed:** all 35 Preserve layout documents match the published baseline by
+  every uncompressed DOCX part when embedding is off; source hashes unchanged.
+- **Passed:** independent review of 27 pages from 14 editable corpus documents,
+  eight representative proof pages, nine edited pages and three table images.
+  The same 21 complex corpus documents remain explicitly rejected. This release
+  does not claim broader arbitrary-PDF success from synthetic table tests.
+- **Passed:** an uninstalled synthetic font used by the actual converter rendered
+  in desktop Word. A newly typed Cyrillic glyph used that same embedded face after
+  save/reopen, verified by font identity and glyph metrics. Full outlines, glyph
+  coverage, metrics and permissions survived; Word changed internal naming/checksum.
+- **Passed:** independent code review after border width/schema fixes; final visual
+  recheck after repairing a separator wrap. Russian native UI inspected and captured;
+  EN/RU widget switching/persistence passed. Further native input stopped when user
+  activity was detected.
+- **Not run yet:** hosted build/fresh-VM, downloaded-binary and public-readback checks.
+
+Fonts are optional and only eligible static TrueType faces are embedded. The
+private original Sirius faces are skipped because they allow preview/print only.
+Other Word versions/viewers, physical printing and organization font policies
+remain unverified. No dependencies were added.
+
 ## 1.1 — editable paragraphs
 
 Current local checks on Windows, 2026-10-22:

@@ -1,5 +1,13 @@
 # Project state
 
+The 1.2 candidate on `feature/document-reconstruction` improves paragraph/table
+reconstruction and adds optional permitted font embedding. Implementation, 120
+tests, independent code review, 27-page corpus review and editing stress checks
+passed. Font portability was verified in Word with an uninstalled synthetic font,
+including a newly typed Cyrillic glyph after save/reopen. Packaging, hosted clean-VM
+and public download verification remain pending. See [current plan](RECONSTRUCTION_PLAN.md)
+and [verification](VERIFICATION.md). The 1.1 results below are historical baseline.
+
 **PageThaw 1.1 is published:** [release and downloads](https://github.com/DelureDev/pagethaw/releases/tag/v1.1.0).
 Normal paragraph-based Word editing after feedback
 about floating text boxes. Local implementation, 97 tests, independent code review,

@@ -45,6 +45,7 @@ class App(tk.Tk):
         self.font_status = tk.StringVar()
         self.set_status('Choose your PDFs to begin. Files stay on your computer.')
         self.rules = tk.BooleanVar(value=False)
+        self.embed = tk.BooleanVar(value=settings.get('embed_fonts') is True)
         self.dpi = tk.StringVar(value='144')
         self.buttons = []
         self.make_ui()
@@ -150,6 +151,10 @@ class App(tk.Tk):
         self.mode_help = ttk.Label(self.font_frame, foreground='#64748b')
         self.mode_help.pack(fill='x', pady=(5, 0))
         self.mode_help.bind('<Configure>', lambda event: self.mode_help.configure(wraplength=max(200, event.width)))
+        self.embed_option = ttk.Checkbutton(self.font_frame, text=self.t('Include fonts in Word files when editing is permitted'),
+                                           variable=self.embed, command=self.mode_changed)
+        self.embed_option.pack(anchor='w', pady=(5, 0))
+        self.buttons.append(self.embed_option)
         ttk.Label(wrap, text=self.t('Save Word files to'), font=('Segoe UI', 10, 'bold')).grid(row=5, column=0, sticky='w', pady=(16, 5))
         output_row = ttk.Frame(wrap)
         output_row.grid(row=6, column=0, sticky='ew')
@@ -186,7 +191,7 @@ class App(tk.Tk):
 
     def refresh_mode(self):
         editable = self.mode.get() == 'editable'
-        self.mode_help.configure(text=self.t('Normal paragraphs and expanding fields. Single-column forms; spacing and page count may change.' if editable else
+        self.mode_help.configure(text=self.t('Normal paragraphs, expanding fields and simple ruled tables. Spacing and page count may change.' if editable else
             'Text stays in positioned boxes. Long edits do not reflow the page. Open results in desktop Word.'))
         self.rules_option.configure(state='disabled' if editable else 'normal')
 
@@ -194,7 +199,7 @@ class App(tk.Tk):
         self.refresh_mode()
         self.file_results.clear()
         self.refresh_files()
-        preferences.save({'mode': self.mode.get()})
+        preferences.save({'mode': self.mode.get(), 'embed_fonts': self.embed.get()})
 
     def toggle_options(self):
         self.options_expanded = not self.options_expanded
@@ -252,6 +257,8 @@ class App(tk.Tk):
             info = index.get(path)
             record = self.file_results.get(path)
             status = record.get('error', record['status']) if record else ((info.error or 'Ready') if info else 'Not scanned')
+            if record and record.get('font_embedding_skipped'):
+                status = 'Converted; some fonts still need installing — Details'
             if not record and info and not info.error and set(info.fonts)-self.mapping.keys():
                 status = 'Choose fonts below'
             self.file_tree.insert('', 'end', iid=str(n), text=path.name,
@@ -275,6 +282,12 @@ class App(tk.Tk):
         detail = record.get('detail')
         if detail and detail != status:
             text += '\n\n'+detail
+        if 'embedded_fonts' in record:
+            text += '\n\n'+self.t('Fonts included: {count}', count=len(record['embedded_fonts']))
+        for font in record.get('font_embedding_skipped', []):
+            text += '\n'+font['family']+' — '+self.t(font['reason'])
+        if record.get('font_embedding_skipped'):
+            text += '\n\n'+self.t('Recipients still need the fonts listed above installed. No font was replaced.')
         messagebox.showinfo(self.t('File details'), text)
 
     def remove_files(self):
@@ -390,7 +403,8 @@ class App(tk.Tk):
             return
         mapping = {name: self.mapping[name] for name in required}
         output, rules, dpi, mode = Path(self.output.get()).resolve(), self.rules.get(), int(self.dpi.get()), self.mode.get()
-        preferences.save({'output': str(output), 'mode': mode})
+        embed = self.embed.get()
+        preferences.save({'output': str(output), 'mode': mode, 'embed_fonts': embed})
         def finished(records):
             self.last_conversion = (output, infos, records)
             self.converted(records, infos)
@@ -400,7 +414,7 @@ class App(tk.Tk):
             for face in mapping.values():
                 if face.path not in paths or family_conflicts(face, current):
                     raise ValueError('Installed fonts changed. Scan files & fonts again before converting.')
-            return convert_batch(infos, output, mapping, rules=rules, dpi=dpi, mode=mode, cancel=self.cancel,
+            return convert_batch(infos, output, mapping, rules=rules, dpi=dpi, mode=mode, embed=embed, cancel=self.cancel,
                 progress=lambda n, total, r: self.events.put(('progress', f'{n}/{total}: {r["input"]} — {r["status"]}')))
         self.run_job(convert, finished, 'Converting locally…')
 
@@ -409,7 +423,10 @@ class App(tk.Tk):
         records = list(self.file_results.values())
         passed = sum(r.get('content_check') == 'passed' for r in records)
         failed = sum(r['status'] == 'failed' for r in records)
-        self.set_status('{passed} converted; {failed} failed; {cancelled} cancelled. Review the Word files.', passed=passed, failed=failed, cancelled=len(records)-passed-failed)
+        message = '{passed} converted; {failed} failed; {cancelled} cancelled. Review the Word files.'
+        if any(r.get('font_embedding_skipped') for r in records):
+            message += ' Some fonts could not be included. Select a file and open Details.'
+        self.set_status(message, passed=passed, failed=failed, cancelled=len(records)-passed-failed)
         self.refresh_files()
 
     def review(self):
@@ -526,7 +543,7 @@ class FontDialog(tk.Toplevel):
             if family_conflicts(face, self.app.faces):
                 messagebox.showwarning(self.t('Conflicting font versions'), self.t('Windows has multiple versions of {font}. Remove duplicate versions in Windows Fonts and rescan, or choose a different font family.', font=face.family), parent=self)
                 return
-            if not messagebox.askyesno(self.t('Install this font?'), self.t('Install {font} for your Windows account?\n\nWord needs it installed to display the result. The font is not embedded or uploaded. Use a font you have permission to install.', font=face.full_name), parent=self):
+            if not messagebox.askyesno(self.t('Install this font?'), self.t('Install {font} for your Windows account?\n\nWord needs it installed for conversion checks. Optional embedding only includes fonts that permit editing. Nothing is uploaded. Use a font you have permission to install.', font=face.full_name), parent=self):
                 return
             face = install_for_current_user(Path(selected))
             self.app.faces.append(face)

@@ -38,13 +38,31 @@ def run(folder, compare=False):
     assert repeated[0]['output'] == 'synthetic-form (2).docx'
     assert (output/records[0]['output']).read_bytes() == original
     assert {p.name for p in output.iterdir()} == {'synthetic-form.docx', 'synthetic-form (2).docx'}
-    editable = convert_batch([info], folder/'editable', {name: face for name in info.fonts}, mode='editable')
+    editable = convert_batch([info], folder/'editable', {name: face for name in info.fonts}, mode='editable', embed=True)
     assert editable[0].get('content_check') == 'passed', editable
     from docx import Document
     from docx.oxml.ns import qn
     editable_doc = Document(folder/'editable'/editable[0]['output'])
     assert not list(editable_doc.element.iter(qn('w:txbxContent')))
     assert editable_doc.tables and editable_doc.paragraphs
+    assert editable[0]['embedded_fonts'] and not editable[0]['font_embedding_skipped'], editable
+    grid_source = folder/'synthetic-table.pdf'
+    with pymupdf.open() as pdf:
+        page = pdf.new_page()
+        page.insert_font(fontname='testfont', fontfile=face.path)
+        for x in (30, 250, 550):
+            page.draw_line((x, 60), (x, 160))
+        for y in (60, 110, 160):
+            page.draw_line((30, y), (550, y))
+        for r in range(2):
+            for c in range(2):
+                page.insert_text((40+c*220, 85+r*50), f'Cell {r} {c}', fontname='testfont', fontsize=12)
+        pdf.save(grid_source)
+    grid_info = inspect_pdf(grid_source)
+    grid_records = convert_batch([grid_info], folder/'table', {name: face for name in grid_info.fonts}, mode='editable')
+    assert grid_records[0].get('content_check') == 'passed', grid_records
+    table = Document(folder/'table'/grid_records[0]['output']).tables[0]
+    assert len(table.rows) == len(table.columns) == 2 and 'Cell 1 1' in table.cell(1, 1).text
     comparison = 'not run'
     if compare:
         from .word_review import review_batch
@@ -86,5 +104,6 @@ def run(folder, compare=False):
         bundled = 'passed'
     (folder/'smoke-result.json').write_text(json.dumps({'status': 'passed', 'pages': 2, 'records': records,
         'frozen': bool(getattr(sys, 'frozen', False)), 'bundled_runtime': bundled, 'gui': 'passed',
-        'repeat_conversion': 'passed', 'output_only_docx': 'passed', 'editable_mode': 'passed', 'comparison': comparison}, indent=2), encoding='utf-8')
+        'repeat_conversion': 'passed', 'output_only_docx': 'passed', 'editable_mode': 'passed',
+        'font_embedding': 'passed', 'ruled_tables': 'passed', 'comparison': comparison}, indent=2), encoding='utf-8')
     return records

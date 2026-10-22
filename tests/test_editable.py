@@ -73,7 +73,7 @@ def test_columns_rejected_before_publication(tmp_path, face, boxed, order):
     assert not (tmp_path/'result.partial.docx').exists()
 
 
-@pytest.mark.parametrize('shape', ['vertical', 'four-stroke-box', 'grid'])
+@pytest.mark.parametrize('shape', ['vertical', 'four-stroke-box', 'incomplete-grid'])
 def test_unsupported_drawing_cannot_disappear(tmp_path, face, shape):
     def draw(page):
         page.insert_text((35, 50), 'Drawing test', fontname='fixture', fontsize=12)
@@ -84,7 +84,7 @@ def test_unsupported_drawing_cannot_disappear(tmp_path, face, shape):
                 page.draw_line(a, b)
         else:
             page.draw_rect(pymupdf.Rect(30, 70, 300, 150))
-            page.draw_line((30, 110), (300, 110))
+            page.draw_line((30, 110), (200, 110))
             page.insert_text((40, 95), 'Cell', fontname='fixture')
     info, mapping = source(tmp_path, face, draw)
     with pytest.raises(UnsupportedLayout):
@@ -192,3 +192,85 @@ def test_signature_label_stays_with_following_field(tmp_path, face):
     verify_document(doc, expected)
     label = next(p for p in doc.paragraphs if 'Signature of applicant' in p.text)
     assert label.paragraph_format.keep_with_next
+
+
+@pytest.mark.parametrize('order', ['row', 'column'])
+def test_ruled_table_cell_order_and_expanding_rows(tmp_path, face, order):
+    def draw(page):
+        for x in [30, 220, 500]:
+            page.draw_line((x, 70), (x, 170))
+        for y in [70, 120, 170]:
+            page.draw_line((30, y), (500, y))
+        positions = [(r,c,k) for r in range(2) for c in range(2) for k in range(2)]
+        if order == 'column':
+            positions.sort(key=lambda p:(p[1],p[0],p[2]))
+        for r,c,k in positions:
+            page.insert_text((40+c*190, 90+r*50+k*14), f'cell {r} {c} line {k}', fontname='fixture', fontsize=10)
+        page.insert_text((30,220), 'Following paragraph.', fontname='fixture', fontsize=10)
+    info,mapping=source(tmp_path,face,draw)
+    target=tmp_path/'result.docx'; convert_pdf(info,target,mapping,mode='editable')
+    doc=Document(target)
+    assert len(doc.tables) == 1
+    table=doc.tables[0]
+    assert len(table.rows) == len(table.columns) == 2
+    for r in range(2):
+        for c in range(2):
+            assert f'cell {r} {c} line 0' in table.cell(r,c).text
+            assert f'cell {r} {c} line 1' in table.cell(r,c).text
+    assert not list(doc.element.iter(qn('w:trHeight')))
+    assert not list(doc.element.iter(qn('w:txbxContent')))
+    assert len(list(doc.element.iter(qn('w:tcBorders')))) == 4
+    for pr in doc.element.iter(qn('w:tcPr')):
+        tags=[n.tag for n in pr]
+        if qn('w:tcBorders') in tags and qn('w:tcMar') in tags:
+            assert tags.index(qn('w:tcBorders')) < tags.index(qn('w:tcMar'))
+    table.cell(0,1).add_paragraph('Additional editable text\nAnother line')
+    doc.save(target)
+    assert 'Additional' in Document(target).tables[0].cell(0,1).text
+
+
+def test_text_crossing_table_border_is_rejected(tmp_path, face):
+    def draw(page):
+        page.draw_rect(pymupdf.Rect(30,70,400,170))
+        page.draw_line((30,120),(400,120))
+        page.draw_line((150,70),(150,170))
+        page.insert_text((130,100),'Text crosses a border',fontname='fixture',fontsize=12)
+    info,mapping=source(tmp_path,face,draw)
+    with pytest.raises(UnsupportedLayout,match='crosses'):
+        convert_pdf(info,tmp_path/'result.docx',mapping,mode='editable')
+
+
+def test_indented_text_is_not_centered_and_line_spaces_are_normalized(tmp_path, face):
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    def draw(page):
+        page.insert_text((30,50),'Main text sets the margin.',fontname='fixture',fontsize=12)
+        page.insert_text((120,100),'Indented paragraph with ',fontname='fixture',fontsize=12)
+        page.insert_text((120,114),' continuation of the same sentence.',fontname='fixture',fontsize=12)
+    info,mapping=source(tmp_path,face,draw)
+    target=tmp_path/'result.docx';convert_pdf(info,target,mapping,mode='editable')
+    doc=Document(target)
+    para=next(p for p in doc.paragraphs if p.text.startswith('Indented'))
+    assert para.alignment != WD_ALIGN_PARAGRAPH.CENTER
+    assert para.paragraph_format.left_indent.pt == pytest.approx(90,abs=1)
+    assert 'with continuation' in para.text and '  ' not in para.text
+
+
+def test_unrepresentable_grid_border_is_rejected(tmp_path, face):
+    def draw(page):
+        page.draw_rect(pymupdf.Rect(30,70,400,170),width=16)
+        page.draw_line((30,120),(400,120),width=16)
+        page.insert_text((50,100),'Cell',fontname='fixture',fontsize=12)
+    info,mapping=source(tmp_path,face,draw)
+    with pytest.raises(UnsupportedLayout):
+        convert_pdf(info,tmp_path/'result.docx',mapping,mode='editable')
+
+
+@pytest.mark.parametrize('mode', ['editable', 'layout'])
+def test_conversion_embeds_only_used_faces(tmp_path, face, mode):
+    from pagethaw.font_embedding import verify_embedded_fonts
+    info,mapping=source(tmp_path,face)
+    mapping['unused']=read_font(Path('C:/Windows/Fonts/arialbd.ttf'),installed=True)
+    target=tmp_path/'embedded.docx'
+    result=convert_pdf(info,target,mapping,mode=mode,embed=True)
+    assert len(result['embedded_fonts'])==1 and not result['font_embedding_skipped']
+    verify_embedded_fonts(target,result)

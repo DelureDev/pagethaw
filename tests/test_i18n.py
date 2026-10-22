@@ -80,6 +80,7 @@ def test_switch_retains_files_fonts_options_results_and_selection(app, tmp_path)
     app.rules.set(True)
     app.dpi.set('192')
     app.mode.set('editable')
+    app.embed.set(True)
     records = [{'status': 'converted; visual review required', 'content_check': 'passed'}]
     app.converted(records)
     app.refresh_fonts()
@@ -100,6 +101,8 @@ def test_switch_retains_files_fonts_options_results_and_selection(app, tmp_path)
     assert app.output.get() == str(tmp_path/'result')
     assert app.rules.get() and app.dpi.get() == '192'
     assert app.mode.get() == 'editable'
+    assert app.embed.get()
+    assert 'Включать шрифты' in app.embed_option.cget('text')
     assert 'Обычные абзацы' in app.mode_help.cget('text')
     assert json.loads(i18n.preference_path().read_text())['language'] == 'ru'
     app.language_button.invoke()

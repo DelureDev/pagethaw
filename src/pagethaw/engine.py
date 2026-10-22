@@ -192,9 +192,9 @@ def check_geometry(pdf, mapping, proofs=None):
                 raise ValueError(f'Page {page.number+1}: stretched or unusually spaced text needs manual conversion.')
 
 
-def convert_pdf(info, target, mapping, rules=False, dpi=144, cancel=None, mode='layout'):
+def convert_pdf(info, target, mapping, rules=False, dpi=144, cancel=None, mode='layout', embed=False):
     if mode == 'editable':
-        return convert_editable(info, target, mapping, dpi, cancel)
+        return convert_editable(info, target, mapping, dpi, cancel, embed)
     if mode != 'layout':
         raise ValueError('Choose Editable text or Preserve layout.')
     """Write atomically and refuse replacement of any existing output."""
@@ -248,13 +248,22 @@ def convert_pdf(info, target, mapping, rules=False, dpi=144, cancel=None, mode='
                 append_shape(paragraph, f'''<v:shape xmlns:v="{V}" xmlns:w="{W}" id="text{index}_{number}" style="{style}" stroked="f" filled="f"><v:textbox inset="0,0,0,0"><w:txbxContent><w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="{round(size*1.25*20)}" w:lineRule="exact"/><w:widowControl w:val="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii={family} w:hAnsi={family} w:eastAsia={family} w:cs={family}/><w:b w:val="{int(face.bold)}"/><w:bCs w:val="{int(face.bold)}"/><w:i w:val="{int(face.italic)}"/><w:iCs w:val="{int(face.italic)}"/><w:kern w:val="1"/><w:sz w:val="{round(size*2)}"/><w:szCs w:val="{round(size*2)}"/><w:color w:val="{span['color']:06x}"/><w:w w:val="100"/></w:rPr><w:t xml:space="preserve">{escape(span['text'])}</w:t></w:r></w:p></w:txbxContent></v:textbox></v:shape>''')
         if cancel and cancel.is_set():
             raise InterruptedError('Cancelled before saving the document.')
+        from .font_embedding import embed_fonts, verify_embedded_fonts
+        embedding = embed_fonts(doc, [mapping[n] for n in info.fonts], cancel) if embed else {}
         target.parent.mkdir(parents=True, exist_ok=True)
         temporary = target.with_suffix('.partial.docx')
         if temporary.exists():
             raise FileExistsError('A partial conversion already exists: '+temporary.name)
+        partial_owned = False
         try:
-            doc.save(temporary)
+            with temporary.open('xb') as stream:
+                partial_owned = True
+                doc.save(stream)
             verify_docx(temporary, expected_pages)
+            if embed:
+                verify_embedded_fonts(temporary, embedding)
+            if cancel and cancel.is_set():
+                raise InterruptedError('Conversion cancelled.')
             # Exclusive create prevents a race with another conversion or user-created file.
             owned = False
             try:
@@ -266,10 +275,11 @@ def convert_pdf(info, target, mapping, rules=False, dpi=144, cancel=None, mode='
                     target.unlink(missing_ok=True)
                 raise
         finally:
-            temporary.unlink(missing_ok=True)
+            if partial_owned:
+                temporary.unlink(missing_ok=True)
     return {'status': 'converted; visual review required', 'pages': info.pages,
             'content_check': 'passed', 'sha256': digest(target),
-            'substitutions': [name for name in info.fonts if not mapping[name].matches(name)]}
+            'substitutions': [name for name in info.fonts if not mapping[name].matches(name)], **embedding}
 
 
 def append_shape(paragraph, xml):
@@ -294,7 +304,7 @@ def digest(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def convert_editable(info, target, mapping, dpi=144, cancel=None):
+def convert_editable(info, target, mapping, dpi=144, cancel=None, embed=False):
     from .editable import build_document, verify_document, cancelled
     target = Path(target)
     if target.exists():
@@ -309,6 +319,8 @@ def convert_editable(info, target, mapping, dpi=144, cancel=None):
     doc.core_properties.title = info.path.stem
     doc.core_properties.comments = 'Flowing paragraphs and expanding form cells. Pagination may differ from the PDF. Review before use.'
     verify_document(doc, expected)
+    from .font_embedding import embed_fonts, verify_embedded_fonts
+    embedding = embed_fonts(doc, [mapping[n] for n in info.fonts], cancel) if embed else {}
     cancelled(cancel)
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary = target.with_suffix('.partial.docx')
@@ -318,6 +330,8 @@ def convert_editable(info, target, mapping, dpi=144, cancel=None):
             owned = True
             doc.save(stream)
         verify_document(Document(temporary), expected)
+        if embed:
+            verify_embedded_fonts(temporary, embedding)
         cancelled(cancel)
         output_owned = False
         try:
@@ -334,10 +348,10 @@ def convert_editable(info, target, mapping, dpi=144, cancel=None):
     return {'status': 'converted; visual review required', 'mode': 'editable',
             'source_pages': info.pages, 'content_check': 'passed', 'fields': fields,
             'pagination': 'reflowed; inspect in Word', 'sha256': digest(target),
-            'substitutions': [name for name in info.fonts if not mapping[name].matches(name)]}
+            'substitutions': [name for name in info.fonts if not mapping[name].matches(name)], **embedding}
 
 
-def convert_batch(infos, output, mapping, *, rules=False, dpi=144, cancel=None, progress=None, write_report=False, mode='layout'):
+def convert_batch(infos, output, mapping, *, rules=False, dpi=144, cancel=None, progress=None, write_report=False, mode='layout', embed=False):
     if mode not in ('layout', 'editable'):
         raise ValueError('Choose Editable text or Preserve layout.')
     output = Path(output)
@@ -367,7 +381,7 @@ def convert_batch(infos, output, mapping, *, rules=False, dpi=144, cancel=None, 
             record.update(status='cancelled')
         else:
             try:
-                record.update(convert_pdf(info, output/record['output'], mapping, rules, dpi, cancel, mode=mode))
+                record.update(convert_pdf(info, output/record['output'], mapping, rules, dpi, cancel, mode=mode, embed=embed))
             except InterruptedError as exc:
                 record.update(status='cancelled', error=str(exc))
             except Exception as exc:

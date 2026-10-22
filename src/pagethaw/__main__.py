@@ -21,6 +21,7 @@ def main():
     parser.add_argument('--output', type=Path)
     parser.add_argument('--mode', choices=['layout', 'editable'], default='layout', help='layout: positioned text; editable: flowing paragraphs and expanding form cells')
     parser.add_argument('--rules', action='store_true', help='Convert standalone runs of 3+ underscores into vector lines')
+    parser.add_argument('--embed-fonts', action='store_true', help='Include full static TrueType faces that permit editable embedding; report skipped faces')
     parser.add_argument('--dpi', type=int, choices=[96, 144, 192], default=144)
     parser.add_argument('--self-test', type=Path, metavar='NEW_FOLDER', help='Run a synthetic portable-runtime smoke test and write its report')
     parser.add_argument('--self-test-word', action='store_true', help='Include desktop Word export in --self-test')
@@ -60,7 +61,7 @@ def main():
             if family_conflicts(matches[0], faces):
                 raise ValueError('Conflicting installed font versions: '+candidate.family+'. Remove duplicate versions and rescan, or choose a different family.')
             mapping[name] = matches[0]
-    records = convert_batch(infos, args.output, mapping, rules=args.rules, dpi=args.dpi, write_report=args.report, mode=args.mode)
+    records = convert_batch(infos, args.output, mapping, rules=args.rules, dpi=args.dpi, write_report=args.report, mode=args.mode, embed=args.embed_fonts)
     print(json.dumps(records, ensure_ascii=False, indent=2))
     return int(any(r.get('content_check') != 'passed' for r in records))
 
