@@ -12,8 +12,9 @@ except Exception as exc:
     else:
         import tkinter as tk
         from tkinter import messagebox
+        from pagethaw.i18n import load_language, translate
         root = tk.Tk()
         root.withdraw()
-        messagebox.showerror('PageThaw', str(exc))
+        messagebox.showerror('PageThaw', translate(load_language(), str(exc)))
         root.destroy()
     raise SystemExit(1)

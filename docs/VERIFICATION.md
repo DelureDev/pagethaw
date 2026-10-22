@@ -1,5 +1,29 @@
 # Release verification
 
+## v0.2.0 — English / Russian interface
+
+Checks performed on Windows on 2026-10-22:
+
+- **Passed:** 39 tests, including all conversion regressions, EN/RU consent
+  prompts, translated diagnostics, language preference persistence and fallback.
+- **Passed:** actual Tk widget tests preserve selected files, font mappings,
+  settings, output folder, selections and results across language changes. The
+  switch is disabled during a job and stale fonts are cleared after file changes.
+- **Passed:** native portable app opened in Russian; its top-right switch changed
+  the interface to English. Both layouts were visually inspected, with no clipped
+  main controls at the default window size.
+- **Passed:** independent read-only review after fixing a page-count translation
+  collision and a missing portable documentation link target.
+- **Not rerun:** Word rendering comparison; the conversion engine and Word
+  exporter are unchanged. The v0.1.0 evidence below remains historical evidence.
+- Portable package/link checks and hosted CI are recorded with the release.
+
+The UI translates application messages and known converter errors. Windows dialogs
+follow Windows' language; unknown OS/library diagnostics and JSON report keys
+remain in their original language. The CLI remains English.
+
+## v0.1.0 — initial converter
+
 Verification for v0.1.0, performed on Windows on 2026-10-22:
 
 - **Passed:** 27 tests covering content, literal underscores, optional form lines,

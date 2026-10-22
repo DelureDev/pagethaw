@@ -7,6 +7,18 @@ import pytest
 
 from pagethaw import gui
 from pagethaw.fonts import read_font
+from pagethaw.i18n import translate
+
+
+@pytest.fixture(params=['en', 'ru'])
+def language(request):
+    return request.param
+
+
+def localize(app, language):
+    app.language = SimpleNamespace(get=lambda: language)
+    app.t = lambda text, **values: translate(language, text, **values)
+    return app
 
 
 @pytest.fixture
@@ -17,21 +29,22 @@ def face():
     return read_font(path, installed=True)
 
 
-def test_convert_waits_for_missing_font_choice(monkeypatch):
+def test_convert_waits_for_missing_font_choice(monkeypatch, language):
     warnings = []
-    app = SimpleNamespace(infos=[object()], font_chars={'MissingFont': 'Test'}, mapping={})
+    app = localize(SimpleNamespace(infos=[object()], font_chars={'MissingFont': 'Test'}, mapping={}), language)
     monkeypatch.setattr(gui.messagebox, 'showwarning', lambda *args: warnings.append(args))
     gui.App.convert(app)
     assert len(warnings) == 1
     assert 'MissingFont' in warnings[0][1]
+    assert warnings[0][0] == translate(language, 'Fonts need your choice')
 
 
 @pytest.mark.parametrize('approve', [False, True])
-def test_substitute_requires_positive_consent(monkeypatch, face, approve):
+def test_substitute_requires_positive_consent(monkeypatch, face, approve, language):
     calls = []
-    app = SimpleNamespace(font_chars={'MissingFont': 'Test'}, mapping={},
-                          refresh_fonts=lambda: calls.append('refresh'))
-    dialog = SimpleNamespace(app=app, source='MissingFont', visible=[face],
+    app = localize(SimpleNamespace(font_chars={'MissingFont': 'Test'}, mapping={},
+                          refresh_fonts=lambda: calls.append('refresh')), language)
+    dialog = SimpleNamespace(app=app, t=app.t, source='MissingFont', visible=[face],
                              list=SimpleNamespace(curselection=lambda: (0,)),
                              destroy=lambda: calls.append('close'))
     monkeypatch.setattr(gui.messagebox, 'askyesno', lambda *args, **kwargs: approve)
@@ -40,9 +53,9 @@ def test_substitute_requires_positive_consent(monkeypatch, face, approve):
     assert calls == (['refresh', 'close'] if approve else [])
 
 
-def test_declining_font_install_does_not_install(monkeypatch, face):
-    app = SimpleNamespace(font_chars={'MissingFont': 'Test'}, faces=[])
-    dialog = SimpleNamespace(app=app, source='MissingFont')
+def test_declining_font_install_does_not_install(monkeypatch, face, language):
+    app = localize(SimpleNamespace(font_chars={'MissingFont': 'Test'}, faces=[]), language)
+    dialog = SimpleNamespace(app=app, t=app.t, source='MissingFont')
     monkeypatch.setattr(gui.filedialog, 'askopenfilename', lambda **kwargs: face.path)
     monkeypatch.setattr(gui.messagebox, 'askyesno', lambda *args, **kwargs: False)
     def forbidden(*args):

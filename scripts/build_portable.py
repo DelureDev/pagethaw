@@ -6,10 +6,12 @@ import json
 import shutil
 import subprocess
 import sys
+import tomllib
 import urllib.request
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
+VERSION = tomllib.loads((ROOT/'pyproject.toml').read_text(encoding='utf-8'))['project']['version']
 
 
 def build():
@@ -24,8 +26,9 @@ def build():
         '--distpath', str(ROOT/'dist'), '--workpath', str(ROOT/'build'),
         '--specpath', str(ROOT/'build'), str(ROOT/'scripts'/'launch.py')], check=True, cwd=ROOT)
     package = ROOT/'dist'/'PageThaw'
-    for name in ('README.md', 'LICENSE', 'THIRD_PARTY.md'):
+    for name in ('README.md', 'README.ru.md', 'LICENSE', 'THIRD_PARTY.md', 'CONTRIBUTING.md'):
         shutil.copy2(ROOT/name, package/name)
+    shutil.copytree(ROOT/'docs', package/'docs', ignore=shutil.ignore_patterns('__pycache__'))
     licenses = package/'licenses'
     licenses.mkdir(exist_ok=True)
     sources = []
@@ -65,7 +68,7 @@ def build():
                  (p.suffix.lower() in {'.pdf', '.docx', '.ttf', '.otf', '.ttc'} or 'sirius' in p.name.lower())]
     if forbidden:
         raise RuntimeError('Unexpected document/font in portable package: '+str(forbidden))
-    archive = ROOT/'dist'/'PageThaw-0.1.0-windows-x64.zip'
+    archive = ROOT/'dist'/f'PageThaw-{VERSION}-windows-x64.zip'
     with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as zipped:
         for path in sorted(package.rglob('*')):
             if path.is_file():
