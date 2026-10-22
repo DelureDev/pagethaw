@@ -38,7 +38,9 @@ Release artifact SHA256:
 - EXE: `41bd73b18d4e3474e69e91f9f165aabc132bb4de090216e75d0e9ef95fa2033e`
 - ZIP: `a5297a4be19a8f6e450534084d6998a9cf3fc1da98e158ee47a2a32f546ac707`
 
-Public release download verification is pending publication.
+**Passed:** [published v1.1.0](https://github.com/DelureDev/pagethaw/releases/tag/v1.1.0)
+EXE, ZIP and checksum file downloaded again after publication. All bytes match the
+tested hosted artifacts. The EXE is 46,223,459 bytes; the ZIP is 46,461,669 bytes.
 
 **Not run:** physical printing, Word web/mobile, LibreOffice or Windows Sandbox.
 Editable mode does not reconstruct native footnotes, automatic lists or complex

@@ -1,14 +1,23 @@
 # Project state
 
-**PageThaw 1.1 candidate:** normal paragraph-based Word editing after feedback
+**PageThaw 1.1 is published:** [release and downloads](https://github.com/DelureDev/pagethaw/releases/tag/v1.1.0).
+Normal paragraph-based Word editing after feedback
 about floating text boxes. Local implementation, 97 tests, independent code review,
 27-page corpus review and three edited-document stress checks passed.
-See [editable conversion plan](EDITABLE_PLAN.md). Work is on
-`feature/editable-documents`; 1.1.0 is a candidate, not yet published.
+See [completed editable conversion plan](EDITABLE_PLAN.md). Implementation commit
+`a0220c5b2790721314c219d2a02416584e9124d0` is integrated into local/public main.
 Hosted portable build/fresh-VM and local relocation checks passed. Exact EXE output
 matches all 14 reviewed editable documents; all 35 layout regression outputs match
-the published 1.0 output. Next: publish the consolidated release and verify public
-downloads. Private evidence is in `.private/editable`.
+the published 1.0 output. Public EXE, ZIP and checksum downloads match the tested
+bytes. This mission is complete. Private evidence is in `.private/editable`;
+three reviewed samples are in `output/editable-reviewed-1.1`.
+
+The public release is built by CI, not the earlier local `dist/1.1.0` prototype.
+Use the release assets (or `.private/editable/published-download`). No private
+documents or font files were published. Native EN/RU screenshots were inspected;
+further mode-click checks were stopped when the helper reported user input.
+Mode switching/persistence is covered by tests. The initial empty local preview
+window may remain open; do not confuse it with the final downloaded build.
 
 ## Product decisions
 
@@ -69,3 +78,9 @@ gpt-6.1-sol/high for independent code review, metric diagnosis and visual review
 The runtime accepted those roles; exact backend identities were not separately
 inspected. Reviews passed after fixes; no fallback was used. The lead was the sole
 writer and integrated the verified branch into main.
+
+For 1.1, native `routing_architect` (requested Astra/low) advised on the bounded
+conversion approach and `routing_reviewer` (requested Sol/high) independently
+reviewed code and all 27 corpus pages. Both roles were runtime-accepted; exact
+backend identities were not separately verified. Findings were fixed/retested,
+final reviews passed, and no routing fallback was used. The lead remained sole writer.

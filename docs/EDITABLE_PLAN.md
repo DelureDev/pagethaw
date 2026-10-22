@@ -14,7 +14,7 @@ Private samples and fonts stay outside Git and release assets.
 - [x] Render every sample page and test sentence insertion, deletion and field entry.
 - [x] Integrate the mode in GUI/CLI with clear EN/RU descriptions and safe retry.
 - [x] Run a wider supported corpus, regression tests and independent review.
-- [ ] Build and verify portable artifacts, update documentation and deliver one update.
+- [x] Build and verify portable artifacts, update documentation and deliver one update.
 
 Acceptance: body text is in ordinary paragraphs, never line/word boxes; fields
 remain usable; paragraphs and subsequent content reflow after edits; images are
@@ -40,7 +40,9 @@ Narrow fields wrap long entries vertically; they do not widen automatically.
 Hosted build/fresh-VM and local relocated EXE/ZIP checks passed. The exact hosted
 EXE reproduces every internal DOCX part of all 14 reviewed editable outputs.
 All 35 layout regression outputs match the published 1.0 version.
-Release publication/download readback remains pending. These are current-run
+Version 1.1.0 is published; EXE, ZIP and checksum file downloaded from the public
+release match the tested bytes. Source commit is `a0220c5`; local main contains
+that implementation plus verification documentation. These are current-run
 results, not inferred from the historical 1.0 gate.
 
 Native routing_reviewer requested gpt-6.1-sol/high for independent read-only
