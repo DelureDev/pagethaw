@@ -16,7 +16,16 @@ Checks performed on Windows on 2026-10-22:
   collision and a missing portable documentation link target.
 - **Not rerun:** Word rendering comparison; the conversion engine and Word
   exporter are unchanged. The v0.1.0 evidence below remains historical evidence.
-- Portable package/link checks and hosted CI are recorded with the release.
+- **Passed:** portable ZIP extracted outside the project and its two-page
+  synthetic conversion completed with developer Python variables removed and
+  PATH limited to Windows directories. This is not a clean-machine test.
+- **Passed:** portable documentation links and archive privacy audit; both
+  READMEs, the app preview and detailed guides are included. No private documents
+  or user font files are bundled.
+- **Passed:** both READMEs rendered on GitHub; language navigation, headings,
+  quick-start lists and feature tables were inspected in the browser.
+- **Passed:** GitHub Windows runner tests and synthetic conversion.
+  [Implementation CI run](https://github.com/DelureDev/pagethaw/actions/runs/39776189166).
 
 The UI translates application messages and known converter errors. Windows dialogs
 follow Windows' language; unknown OS/library diagnostics and JSON report keys

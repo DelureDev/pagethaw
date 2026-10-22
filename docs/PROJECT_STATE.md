@@ -11,12 +11,14 @@ This first release targets selectable, horizontal text on consistent-sized pages
 Word desktop is the reference viewer. OCR, rotated text and interactive PDF forms
 are outside the first release. Conversion itself does not require Word.
 
-Status: v0.2.0 implementation and local verification complete; portable package
-and hosted release checks are in progress. The new English/Russian switch retains
+Status: v0.2.0 implementation and verification complete. The portable package
+passed its relocation test and hosted Windows CI passed. The English/Russian switch retains
 batch state and saves the preference locally. Both READMEs are shorter and linked;
 technical documentation is in docs/USAGE.md. Local tests (39), native app language
 switch/layout inspection and independent review passed. Converter/exporter code
-is unchanged; no new Word rendering comparison was needed.
+is unchanged; no new Word rendering comparison was needed. Both published
+READMEs were inspected in the browser. Release asset checksums are supplied with
+the download; detailed local build and upload evidence stays in the private archive.
 
 Repository: https://github.com/DelureDev/pagethaw
 Release: https://github.com/DelureDev/pagethaw/releases/latest
