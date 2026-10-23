@@ -1,5 +1,31 @@
 # Release verification
 
+## 1.2.1 — editable line spacing
+
+Local checks on Windows, 2026-10-23:
+
+- **Passed:** 126 tests, including responsive leading without changing type size,
+  irregular/mixed-size/legacy-font fallbacks, local evidence isolation, growing
+  fields and correctly formatted empty caption cells.
+- **Passed:** all 35 Preserve layout outputs match the published baseline by every
+  uncompressed DOCX part. Original PDF hashes remain unchanged.
+- **Passed:** 14 editable corpus documents rendered to 22 Word pages; all reviewed
+  independently against their 21 source pages. The same 21 complex inputs remain
+  explicitly rejected. Reflow can change page counts.
+- **Passed:** 8 representative pages, 9 long-edit pages and 9 enlarged-text pages
+  reviewed independently. Tests include 15 pt body text, a 22 pt mixed run, accents,
+  descenders and narrow 15/20 pt fields growing across pages. Actual Word save/reopen
+  preserved all edited text without fixed row heights or positioned text boxes.
+- **Passed:** independent code review. No dependencies or public/private font
+  permissions changed; no private fonts or PDFs are bundled.
+- **Not run yet:** hosted build/fresh-VM, exact-artifact relocation/output parity
+  and public release verification. Those gates precede publication.
+
+The reported form's section 4 now fits page 1 at the original font size. Two tail
+lines from source page 2 still flow onto page 3. Older fonts without explicit
+typographic metrics keep their prior minimum spacing. Pixel-identical pagination,
+physical printing and other Word versions/viewers are not verified.
+
 ## 1.2 — reconstruction and font portability
 
 Current local checks on Windows, 2026-10-22:

@@ -19,6 +19,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Pt, RGBColor
 from .ruled_tables import find_grids, partition
+from .text_spacing import TextSpacing
 
 
 class UnsupportedLayout(ValueError):
@@ -208,7 +209,7 @@ def table_at(parent, widths, border=False):
         # default-sized blank line after each nested form row.
         tail = parent.paragraphs[-1]
         tail.paragraph_format.space_after = Pt(0)
-        tail.paragraph_format.line_spacing = Pt(1)
+        tail.paragraph_format.line_spacing = Pt(.05)
         tail.paragraph_format.line_spacing_rule = WD_LINE_SPACING.EXACTLY
         tail.add_run().font.size = Pt(1)
     table.autofit = False
@@ -229,7 +230,7 @@ def table_separator(parent):
     # separates them; that changes the widths of unrelated form fields.
     p = parent.add_paragraph() if hasattr(parent, 'sections') else parent.paragraphs[-1]
     p.paragraph_format.space_before = p.paragraph_format.space_after = Pt(0)
-    p.paragraph_format.line_spacing = Pt(1)
+    p.paragraph_format.line_spacing = Pt(.05)
     p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.EXACTLY
     p.add_run().font.size = Pt(1)
     return p
@@ -242,6 +243,23 @@ class Writer:
         self.expected = []
         self.field_count = 0
         self.last_field = None
+        self.spacing = TextSpacing(mapping)
+
+    def text_metrics(self, para, lines, responsive=True):
+        """Set paragraph-mark metrics too, including empty form/caption cells."""
+        span = max((s for line in lines for s in line.spans), key=lambda s: s['size'])
+        face = self.mapping[span['font']]
+        pr = para._p.get_or_add_pPr()
+        mark = element('rPr')
+        mark.append(element('rFonts', ascii=face.family, hAnsi=face.family, eastAsia=face.family, cs=face.family))
+        mark.append(element('b', val=int(face.bold)))
+        mark.append(element('i', val=int(face.italic)))
+        mark.append(element('sz', val=round(span['size']*2)))
+        mark.append(element('szCs', val=round(span['size']*2)))
+        pr.append(mark)
+        multiple = self.spacing.multiple(lines) if responsive else None
+        if multiple is not None:
+            para.paragraph_format.line_spacing = multiple
 
     def run(self, para, span, text):
         face = self.mapping[span['font']]
@@ -308,6 +326,7 @@ class Writer:
             leading = median(b-a for a, b in zip(baselines, baselines[1:]))
             if first.size <= leading <= first.size*2:
                 pf.line_spacing = Pt(leading)
+        self.text_metrics(para, lines, responsive=not title)
         pf.keep_with_next = first.bold and len(lines) == 1
         for index, line in enumerate(lines):
             if index:
@@ -360,6 +379,7 @@ class Writer:
         table = table_at(parent, widths)
         for cell, (cs, blank) in zip(table.rows[0].cells, parts):
             para = self.paragraph(cell, line.size)
+            self.text_metrics(para, [line])
             if blank:
                 self.field_count += 1
                 borders = element('tcBorders')
@@ -407,6 +427,7 @@ class Writer:
             _, index = min(choices)
             used.add(index)
             p = self.paragraph(table.cell(0, index), line.size)
+            self.text_metrics(p, [line])
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             span, text = cs[0][1], ''
             for char, current in cs:
@@ -418,7 +439,7 @@ class Writer:
         # Empty cells must have the same small, expanding paragraph metrics.
         for i, cell in enumerate(table.rows[0].cells):
             if i not in used:
-                self.paragraph(cell, line.size)
+                self.text_metrics(self.paragraph(cell, line.size), [line])
         table_separator(parent)
         self.last_field = None
         return True
@@ -455,6 +476,7 @@ class Writer:
 
     def flow(self, parent, lines, width, top=None, left=None):
         check_columns(lines)
+        self.spacing.flow(lines)
         left = self.left if left is None else left
         self.last_field = None
         pending = []

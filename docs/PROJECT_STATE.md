@@ -1,5 +1,43 @@
 # Project state
 
+## 1.2.1 spacing correction — local checks passed; release pending
+
+2026-10-23: the owner's latest DOCX still overflowed after fixing fonts. Direct
+GDI readback confirms the active ALS Sirius regular/bold faces are original
+1.006. Old PDF Sirius aliases remain in registry inventory but are not active;
+the initial alias-based experiment was invalid and discarded. No fonts or user
+documents were changed by this work.
+
+Implemented responsive leading for uniform measured text with explicit OpenType
+typographic metrics. Single rows use only repeated tight adjacent-row evidence
+within the same flow container, taking the roomier advance at transitions. This
+is a tested approximation of row spacing, not recovery of invisible PDF paragraph
+semantics. Legacy/ambiguous metrics retain expanding minimum spacing. Empty table
+separators occupy one twip; caption paragraph marks carry their own font metrics.
+Text sizes, content checks and growing fields remain intact.
+
+**Passed:** 126 tests; source hashes unchanged; all 35 Preserve layout DOCX files
+match the published baseline by every uncompressed part. The editable corpus
+still accepts 14 and rejects 21; all 22 current Word pages independently reviewed.
+Three representative forms (8 pages), 9 ordinary edited pages and 9 enlarged-text
+stress pages passed independent visual review. The latter survived actual Word
+save/reopen with exact text preservation and no fixed row heights/text boxes.
+The reported form's whole section 4 fits page 1 again; two source-page-2 tail lines
+still appear on page 3. Do not claim identical pagination or universal Word metrics.
+
+Private evidence: `.private/editable/spacing-fix` (`implementation-2`, `edits-2`,
+`tall-edit-2`, `corpus-2`, `layout-regression-2-verification.json`). Initial
+prototype and historical alias renders are not release evidence. Native roles
+`routing_architect` (requested Astra/low) and `routing_reviewer` (requested
+Sol/high) were accepted; exact backend settings were not separately verified.
+Architect advised conservative evidence and warned about paragraph-gap ambiguity;
+lead selected the documented local approximation after real Word testing. Reviewer
+passed code and all affected renders. No fallback, no subagent writes.
+
+Next: hosted build/fresh-VM checks, exact-artifact relocation and output equality,
+publish 1.2.1, verify public bytes, copy corrected sample, integrate and update state.
+**Not run yet:** these release gates; physical printing and other Word versions.
+
 **PageThaw 1.2 is published:** [release and downloads](https://github.com/DelureDev/pagethaw/releases/tag/v1.2.0).
 It improves paragraph/table reconstruction and adds optional permitted font
 embedding. Implementation commit `0dcb8b52193902f4b70741c33f7d87e7b612619d`
