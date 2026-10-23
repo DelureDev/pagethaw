@@ -18,8 +18,23 @@ Local checks on Windows, 2026-10-23:
   preserved all edited text without fixed row heights or positioned text boxes.
 - **Passed:** independent code review. No dependencies or public/private font
   permissions changed; no private fonts or PDFs are bundled.
-- **Not run yet:** hosted build/fresh-VM, exact-artifact relocation/output parity
-  and public release verification. Those gates precede publication.
+- **Passed:** [hosted Windows tests](https://github.com/DelureDev/pagethaw/actions/runs/39922446099)
+  and [build/fresh Windows VM](https://github.com/DelureDev/pagethaw/actions/runs/39922445844)
+  from `0059081eca5625ee78969e2abe97306045fe4f2b`. Both portable formats also
+  passed local relocation into a Cyrillic path, clean preferences, Windows-only
+  PATH, bundled runtime, repeat conversion and EN/RU widget checks.
+- **Passed:** exact EXE output matches every source-converter DOCX part for all 14
+  editable files and the baseline for all 35 layout files. Editable artifact tests
+  use registered original-font aliases; normalizing just those family names gives
+  equality to every part of the visually reviewed files. No system font changes
+  were made for these tests.
+- **Passed:** [published 1.2.1](https://github.com/DelureDev/pagethaw/releases/tag/v1.2.1)
+  EXE, ZIP and checksums downloaded again and matched the tested hosted bytes.
+
+Release SHA256:
+
+- EXE (46,298,572 bytes): `9d06ceea7c27ab92534e4d93c7efe58712f6fa7806c51021e722f79c606a208d`
+- ZIP (46,555,066 bytes): `5f6f6a13db7a80a31a7d0bbf5d8475d37500cbbf6c8018bf734c857c226cdb5f`
 
 The reported form's section 4 now fits page 1 at the original font size. Two tail
 lines from source page 2 still flow onto page 3. Older fonts without explicit

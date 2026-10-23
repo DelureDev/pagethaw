@@ -1,6 +1,6 @@
 # Project state
 
-## 1.2.1 spacing correction — local checks passed; release pending
+## 1.2.1 spacing correction — published and verified
 
 2026-10-23: the owner's latest DOCX still overflowed after fixing fonts. Direct
 GDI readback confirms the active ALS Sirius regular/bold faces are original
@@ -34,9 +34,23 @@ Architect advised conservative evidence and warned about paragraph-gap ambiguity
 lead selected the documented local approximation after real Word testing. Reviewer
 passed code and all affected renders. No fallback, no subagent writes.
 
-Next: hosted build/fresh-VM checks, exact-artifact relocation and output equality,
-publish 1.2.1, verify public bytes, copy corrected sample, integrate and update state.
-**Not run yet:** these release gates; physical printing and other Word versions.
+**Passed:** hosted tests `39922446099` and build/fresh-VM `39922445844`, both
+portable formats relocated locally with clean preferences, Cyrillic paths and
+no external Python on PATH. Exact EXE output matches all source-converter DOCX
+parts for 14 editable files and the published baseline for all 35 layout files.
+Editable artifact tests used the registered original-font aliases; after only
+normalizing those family names, every part matches the visually reviewed files.
+No fonts were activated/reinstalled to make a test pass.
+
+**Published:** [1.2.1](https://github.com/DelureDev/pagethaw/releases/tag/v1.2.1)
+from source commit `0059081eca5625ee78969e2abe97306045fe4f2b`, integrated into
+local/public main. All three public downloads match the tested hosted bytes.
+The verified EXE is copied to the user's Downloads folder. A separately named
+corrected DOCX is in their PageThaw-output folder; originals remain untouched.
+The exact destination/hash is recorded privately in `spacing-fix/delivery.json`.
+This spacing mission is complete; no further tasks are queued. **Not run:**
+physical printing and other Word versions. The historical reports below are not
+current evidence, and old registered font aliases may still need user cleanup.
 
 **PageThaw 1.2 is published:** [release and downloads](https://github.com/DelureDev/pagethaw/releases/tag/v1.2.0).
 It improves paragraph/table reconstruction and adds optional permitted font
