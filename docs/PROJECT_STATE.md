@@ -1,9 +1,10 @@
 # Project state
 
-## 1.3.1 — editable footnotes and touching blank lines (candidate)
+## 1.3.1 — editable footnotes and touching blank lines (published)
 
-2026-10-23: owner requested fixes for the two six-file test failures below.
-Implementation is on `fix/editable-footnotes-and-borders`; publication is pending.
+2026-10-23: [1.3.1](https://github.com/DelureDev/pagethaw/releases/tag/v1.3.1)
+is published from `da2ef1666e361595ed96cb644d49a0bf5386a2c0` and integrated into main.
+The owner requested fixes for the two six-file test failures below.
 Native Word footnotes now retain uniquely matched raised reference marks and
 ordinary editable note paragraphs. The following source-page boundary is retained.
 An underscore-only blank may graze a horizontal form border by at most 1.5 pt;
@@ -22,7 +23,16 @@ equals the freshly reviewed output. All 35 Preserve layout outputs equal publish
 1.3.0 parts. Local build and both relocated portable formats pass, including the
 new native-note/border smoke fixture, clean preferences and no Python on PATH.
 
-**Not run yet:** hosted candidate/fresh VM and public-download readback. The existing
+**Passed:** hosted Windows tests `39952221801`, build/fresh VM `39952223331`, exact
+hosted EXE/ZIP relocation locally, all 16 frozen application modules equal tested
+source, and 10 synthetic frozen outputs equal source by every DOCX part. A native
+Word render confirms custom marker 7 and the following page in the frozen fixture.
+All public EXE, ZIP and checksum bytes were downloaded again and equal the tested
+hosted candidate. The verified EXE is in Downloads; five reviewed retained-line
+DOCX files are in `Downloads/PageThaw-output/test-1.3.1`, with no reports alongside.
+All 175 tests also passed after the local integration fast-forward.
+
+The existing
 stale-font-alias registry/GDI discrepancy is not changed by this release; correct-font
 visual proof uses active faces whose outlines and metrics were read back from GDI.
 No font installation, registry edits or guard bypass occurred. Pixel-identical layout,
@@ -31,8 +41,10 @@ other Word versions and printing remain unverified. Private evidence is in
 
 Independent read-only review: `routing_reviewer`, requested Sol/high, accepted role
 request; backend identity not independently confirmed. The lead owned all changes.
-Next: finish hosted binary checks, publish 1.3.1, deliver the reviewed DOCX files and
-verified EXE, then record exact release hashes and checks here.
+The two-defect mission is complete. Release evidence and exact hashes are in
+`.private/form-boundary-footnotes/release-verification.json` and `docs/VERIFICATION.md`.
+The unrelated installed-font identity issue and missing-font file remain separate
+open items; do not describe this release as universal pixel-identical conversion.
 
 ## Six additional owner PDFs — test findings, 2026-10-23
 

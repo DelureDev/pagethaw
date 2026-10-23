@@ -1,6 +1,6 @@
 # Release verification
 
-## 1.3.1 — footnotes and form border blanks (candidate)
+## 1.3.1 — footnotes and form border blanks
 
 - **Passed:** 175 tests, including native note relationships, custom reference
   marks, independent content/order checks after reload, ambiguous references,
@@ -18,10 +18,26 @@
   include native footnotes and a blank touching a form border.
 - **Blocked:** the sixth owner form still needs its missing font; no substitution
   was made. The unrelated stale installed-font alias issue remains unresolved.
-- **Not run yet:** hosted fresh-VM candidate and public-download verification.
+- **Passed:** [hosted Windows tests](https://github.com/DelureDev/pagethaw/actions/runs/39952221801)
+  and [build/fresh Windows VM](https://github.com/DelureDev/pagethaw/actions/runs/39952223331)
+  from `da2ef1666e361595ed96cb644d49a0bf5386a2c0`. Exact hosted EXE/ZIP also passed
+  local relocation; all 16 frozen modules and 10 synthetic DOCX outputs equal tested
+  source. The frozen custom-mark footnote fixture was rendered and inspected in Word.
+- **Passed:** public EXE, ZIP and checksums downloaded again and compared byte for
+  byte with the tested candidate. Verified EXE and five reviewed DOCX files delivered
+  locally. All 175 tests passed again after integration into main.
 - **Not exact:** field geometry, paragraph wrapping and header placement can differ;
   Word's standard footnote separator is shorter. Other Word versions and printing
   were not tested. Private documents and fonts are excluded from distribution.
+
+Published [1.3.1](https://github.com/DelureDev/pagethaw/releases/tag/v1.3.1) assets:
+
+- EXE (46,329,026 bytes): `72296d0a9cba902bb4557b74945aae7a8499d037d3f590025c72dc03ddcbd647`
+- ZIP (46,595,212 bytes): `b338dc05205654e9e2525838a3d84e53b2f83fed050a2544a9aec3d47088fd87`
+
+Correct-font private visual evidence uses live-GDI-verified faces with the same
+verified converter code. The separate stale-alias font-selection defect was not
+changed or bypassed. Private evidence: `.private/form-boundary-footnotes`.
 
 ## 1.3.0 — shared editable fidelity
 
