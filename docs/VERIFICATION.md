@@ -1,8 +1,8 @@
 # Release verification
 
-## Unreleased — shared editable fidelity
+## 1.3.0 — shared editable fidelity
 
-Local Windows checks, 2026-10-23, branch `fix/editable-page-fidelity`:
+Local Windows checks, 2026-10-23, source `6473e9ae6a9289dde451f4c639d31aeab3008777`:
 
 - **Passed:** 141 tests and `git diff --check`. Synthetic fixtures cover local
   spacing evidence, font-metric boundaries, fallback paths, soft breaks, growing
@@ -35,11 +35,42 @@ Local Windows checks, 2026-10-23, branch `fix/editable-page-fidelity`:
 - **Failed — exact fidelity:** source page boundaries still differ in several
   forms; receipt/field geometry is approximate. Page counts alone are not a
   fidelity gate. No claim of universal 100% or pixel-identical conversion.
-- **Blocked:** native EN/RU visual inspection while the desktop is in use.
-  No focus was taken; programmatic language/state/persistence checks passed.
-- **Not run:** current candidate build, both-format relocation, fresh Windows VM,
-  release/public download checks, physical printing and other Word versions.
-  Published 1.2.1 gates below are historical, not evidence for these changes.
+- **Passed:** native EN/RU visual inspection of the source app and exact hosted
+  release EXE, including retained-line state/help. Layout-disabled state was
+  inspected visually in the source app and checked by the frozen smoke test.
+- **Passed:** local build and both portable formats relocated into a Cyrillic
+  temporary path with clean preferences and external Python absent from PATH.
+  The exact hosted binaries passed the same relocation checks locally.
+- **Passed:** [hosted Windows tests](https://github.com/DelureDev/pagethaw/actions/runs/39940283776)
+  and [build/fresh Windows VM](https://github.com/DelureDev/pagethaw/actions/runs/39940283779).
+  The frozen smoke checks normal retained-line paragraphs, no text boxes/frames,
+  the option's default/state and EN/RU switching. Package audits exclude private
+  documents/fonts and unused AI dependencies.
+- **Passed:** all 15 frozen PageThaw modules match tested source code after only
+  normalizing compile-time filenames. Both editable modes (14 files each) match
+  every source-converter DOCX part using identical registered font mappings.
+  All 35 frozen Preserve layout outputs match the published baseline.
+- **Passed:** an exact-name Arial fixture with deliberately nonzero source
+  tracking matches every source/frozen DOCX part, has nonzero `w:spacing`, a
+  14 pt expanding line minimum and one ordinary paragraph with a soft break.
+- **Not run:** exact original-Sirius-mapped frozen Word render. This PC's font
+  registry still contains conflicting old versions and the original regular
+  face only under a renamed alias. Binary corpus checks use those explicit
+  registered aliases and exercise the intended name-mismatch fallback. They do
+  not prove original-font visual equivalence by normalizing font names. Original
+  font visual checks above use the independently verified same converter code.
+  No font installation, registry or CLI safety check was changed for testing.
+- **Not run:** physical printing and other Word versions. Source page/field
+  differences remain explicitly documented; this is not a 100% match claim.
+
+Published assets from the hosted build (CPython 3.12.10, python-docx 1.2.0,
+PyMuPDF 2.0, fonttools 4.67.0, Pillow 13.0.0):
+
+- EXE (46,314,929 bytes): `7c07177f1cf6580fe7f734bd8e7d93f8f864e9fda1719d07a3774b2ec2cb0a67`
+- ZIP (46,578,122 bytes): `21f4c3e4c91f07488b9f153f2ef058c454152698883a3472910fa4c05d015abf`
+- **Passed:** [published 1.3.0](https://github.com/DelureDev/pagethaw/releases/tag/v1.3.0)
+  EXE, ZIP and checksums downloaded again; all bytes match the tested hosted assets.
+  The verified EXE was copied without replacement into the owner's Downloads folder.
 
 Private evidence is under `.private/editable/page-fidelity`; see the current
 project-state entry for exact directories. Public tests contain synthetic data.

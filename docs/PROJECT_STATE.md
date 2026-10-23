@@ -1,20 +1,17 @@
 # Project state
 
-## Current work — 1.3.0 release candidate, not released
+## 1.3.0 shared editable fidelity — published and verified
 
-The owner asked why this update was not published. Release preparation is now
-active: complete native EN/RU review, build both portable formats, run local
-relocation and hosted fresh-VM gates, verify the exact candidate against the
-reviewed corpus, then publish and verify public downloads. Version is 1.3.0.
-The packaged smoke test now exercises retained lines and the new option's state.
-The checks recorded below remain the source-converter evidence until these
-candidate gates finish; the remaining exact-fidelity limits remain disclosed.
+2026-10-23: [PageThaw 1.3.0](https://github.com/DelureDev/pagethaw/releases/tag/v1.3.0)
+is published from `6473e9ae6a9289dde451f4c639d31aeab3008777`. All public downloads
+match the tested hosted bytes; the verified EXE is also in the owner's Downloads
+folder. Implementation and release evidence are integrated into main. The release
+pipeline is complete; universal pixel/page-boundary fidelity is not achieved.
 
-2026-10-23, branch `fix/editable-page-fidelity`. The owner clarified that text
-must remain normal editable paragraphs, and that improvements must apply to the
-algorithm rather than one example. No document-name, wording or Sirius-specific
-conditions were introduced. Source fonts/documents and existing outputs remain
-private and untouched. Published 1.2.1 and its downloads are unchanged.
+The owner clarified that text must remain normal editable paragraphs and that
+improvements must apply to the algorithm rather than one example. No document-name,
+wording or Sirius-specific conditions were introduced. Source fonts/documents and
+existing outputs remain private and untouched.
 
 Implemented local paragraph-boundary/spacing inference, responsive dense leading,
 bounded font-metric minimum spacing, right-hand-logo headers, trailing-blank-row
@@ -39,13 +36,23 @@ geometry still differ. Do not describe the main sample's paragraph checks as
 content survives but that is not comfortable editing. Forced source page breaks
 were rejected after adding pages to multiple forms.
 
-**Blocked:** native EN/RU visual inspection because the desktop was actively in
-use; input automation stopped. **Not run:** current branch's build, relocation,
-fresh-VM, release, other Word versions and physical printing. Unit UI checks
-passed; historical release gates below do not validate this branch. Keep changes
-on the development branch until the release gates and remaining fidelity work
-are addressed. See [active plan](PAGE_FIDELITY_PLAN.md) and
-[current evidence](VERIFICATION.md#unreleased--shared-editable-fidelity).
+**Passed:** native EN/RU source and exact release-EXE visual review; independent
+release/code review; local build; both portable formats relocated with clean
+preferences and no external Python on PATH; hosted tests `39940283776` and
+build/fresh-VM `39940283779`. All 15 bundled application modules equal the tested
+source after normalizing compile-time filenames. Both editable modes match source
+conversion under the same registered aliases (14 files each), and 35 frozen layout
+outputs match baseline. An exact-name Arial fixture verifies nonzero tracking,
+retained breaks, expanding minimum spacing and all-part source/EXE equivalence.
+
+**Not run:** exact original-Sirius-mapped frozen Word rendering because local
+registry entries still include conflicting versions and a renamed original regular
+face. Alias-based binary tests exercise the intended fallback, not original-font
+visual identity. The original-font visual checks use the same independently
+verified converter code. No font/registry changes or weakened CLI guards were used.
+Physical printing and other Word versions remain untested. See the
+[plan and remaining fidelity work](PAGE_FIDELITY_PLAN.md) and
+[release evidence](VERIFICATION.md#130--shared-editable-fidelity).
 
 Private evidence: `.private/editable/page-fidelity/attempt-final` (same parts as
 reviewed `attempt-7`), `corpus-final/qa.json` (per-file final/reused render paths),
@@ -56,7 +63,10 @@ the accepted metric-boundary evidence. Corpus export 2 initially returned no PDF
 its isolated retry succeeded and is the reviewed render.
 The final corrected example was copied without replacement into the owner's
 PageThaw-output folder. Its path/hash are in private `page-fidelity/delivery.json`;
-it is a normal paragraph DOCX with retained soft line breaks, not a new EXE release.
+it is a normal paragraph DOCX with retained soft line breaks. Release/binary/public
+checks are recorded in `release-verification.json`, `release-artifact-verification.json`,
+`artifact-tracking/verification.json` and `public-verification.json`. The release
+EXE SHA256 is `7c07177f1cf6580fe7f734bd8e7d93f8f864e9fda1719d07a3774b2ec2cb0a67`.
 
 Read-only routing used `routing_reviewer`, requested Sol/high, for independent
 code and visual review, and `routing_scout`, requested Luna/high, for the bounded
