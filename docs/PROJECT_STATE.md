@@ -1,6 +1,14 @@
 # Project state
 
-## Current work — shared editable fidelity improvements, not released
+## Current work — 1.3.0 release candidate, not released
+
+The owner asked why this update was not published. Release preparation is now
+active: complete native EN/RU review, build both portable formats, run local
+relocation and hosted fresh-VM gates, verify the exact candidate against the
+reviewed corpus, then publish and verify public downloads. Version is 1.3.0.
+The packaged smoke test now exercises retained lines and the new option's state.
+The checks recorded below remain the source-converter evidence until these
+candidate gates finish; the remaining exact-fidelity limits remain disclosed.
 
 2026-10-23, branch `fix/editable-page-fidelity`. The owner clarified that text
 must remain normal editable paragraphs, and that improvements must apply to the

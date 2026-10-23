@@ -26,6 +26,8 @@ def run(folder, compare=False):
             page.insert_text((35, 115), 'Reference: account_id / Test 123', fontname='testfont', fontsize=11)
             page.draw_rect(pymupdf.Rect(30, 140, 560, 240), color=(.1, .5, .55))
             page.insert_text((40, 165), 'An editable form with a retained graphic border.', fontname='testfont', fontsize=11)
+            page.insert_text((35, 265), 'This paragraph continues', fontname='testfont', fontsize=11)
+            page.insert_text((35, 279), 'as ordinary editable text.', fontname='testfont', fontsize=11)
         pdf.save(source)
     info = inspect_pdf(source)
     assert not info.error, info.error
@@ -46,6 +48,13 @@ def run(folder, compare=False):
     assert not list(editable_doc.element.iter(qn('w:txbxContent')))
     assert editable_doc.tables and editable_doc.paragraphs
     assert editable[0]['embedded_fonts'] and not editable[0]['font_embedding_skipped'], editable
+    retained = convert_batch([info], folder/'retained-lines', {name: face for name in info.fonts},
+                             mode='editable', keep_line_breaks=True)
+    assert retained[0].get('content_check') == 'passed', retained
+    retained_doc = Document(folder/'retained-lines'/retained[0]['output'])
+    assert any('This paragraph continues\nas ordinary editable text.' in p.text for p in retained_doc.paragraphs)
+    assert not list(retained_doc.element.iter(qn('w:txbxContent')))
+    assert not list(retained_doc.element.iter(qn('w:framePr')))
     grid_source = folder/'synthetic-table.pdf'
     with pymupdf.open() as pdf:
         page = pdf.new_page()
@@ -87,6 +96,14 @@ def run(folder, compare=False):
         assert app.font_frame.winfo_manager() == 'grid'
         assert app.mode.get() == 'editable'
         assert 'Normal paragraphs' in app.mode_help.cget('text')
+        assert app.keep_lines.get() is False
+        app.keep_lines.set(True)
+        app.mode_changed()
+        app.switch_language()
+        assert app.keep_lines.get() and app.keep_lines_option.cget('text') == app.t('Keep PDF line breaks in normal paragraphs')
+        app.mode.set('layout')
+        app.mode_changed()
+        assert 'disabled' in app.keep_lines_option.state()
         app.update_idletasks()
     finally:
         if app:
@@ -105,5 +122,5 @@ def run(folder, compare=False):
     (folder/'smoke-result.json').write_text(json.dumps({'status': 'passed', 'pages': 2, 'records': records,
         'frozen': bool(getattr(sys, 'frozen', False)), 'bundled_runtime': bundled, 'gui': 'passed',
         'repeat_conversion': 'passed', 'output_only_docx': 'passed', 'editable_mode': 'passed',
-        'font_embedding': 'passed', 'ruled_tables': 'passed', 'comparison': comparison}, indent=2), encoding='utf-8')
+        'font_embedding': 'passed', 'ruled_tables': 'passed', 'retained_lines': 'passed', 'comparison': comparison}, indent=2), encoding='utf-8')
     return records
