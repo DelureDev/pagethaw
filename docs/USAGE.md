@@ -16,9 +16,12 @@ grow with editing; merged cells, partial grids and graphics inside tables remain
 unsupported. Paragraph indents, hanging indents, alignment and leading are inferred
 from source geometry. Ambiguous columns, complex grids,
 overlapping graphics and unsupported drawing paths fail with a reason. There is
-no automatic fallback to the other mode. Footnotes and list numbers remain ordinary
-text, not native Word footnote/list fields. Source page boundaries may be removed
-when body text continues; new title/graphic headers retain a page boundary.
+no automatic fallback to the other mode. Bottom-of-page notes with a separator and
+unique raised reference marks become native, editable Word footnotes. Ambiguous
+references or a separate footer mixed into the note region are rejected. Other
+note styles are not inferred, and list numbers remain ordinary text. Source page
+boundaries may be removed when body text continues; new title/graphic headers and
+the boundary after a recognized footnote page retain a page break.
 
 **Keep PDF line breaks in normal paragraphs** is an optional editable-mode setting.
 It retains soft line breaks within related paragraphs and reconstructs simple

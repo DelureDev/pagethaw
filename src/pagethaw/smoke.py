@@ -72,6 +72,40 @@ def run(folder, compare=False):
     assert grid_records[0].get('content_check') == 'passed', grid_records
     table = Document(folder/'table'/grid_records[0]['output']).tables[0]
     assert len(table.rows) == len(table.columns) == 2 and 'Cell 1 1' in table.cell(1, 1).text
+    # Exercise both fixes in the actual frozen executable on a clean Windows VM.
+    notes_source = folder/'synthetic-notes.pdf'
+    font = pymupdf.Font(fontfile=face.path)
+    with pymupdf.open() as pdf:
+        page = pdf.new_page(width=500, height=500)
+        page.insert_font(fontname='testfont', fontfile=face.path)
+        prefix = 'Body with a footnote'
+        page.insert_text((30, 50), prefix, fontname='testfont', fontsize=12)
+        page.insert_text((30+font.text_length(prefix, fontsize=12), 46), '7', fontname='testfont', fontsize=7)
+        page.insert_text((30, 140), '_'*50, fontname='testfont', fontsize=12)
+        blank = next(line for block in page.get_text('dict')['blocks'] for line in block.get('lines', [])
+                     if ''.join(s['text'] for s in line['spans']).startswith('___'))
+        page.draw_rect(pymupdf.Rect(25, blank['bbox'][3]-.8, 475, 220))
+        page.insert_text((30, 180), 'Inside the form.', fontname='testfont', fontsize=12)
+        page.draw_line((30, 390), (300, 390))
+        page.insert_text((30, 406), '7', fontname='testfont', fontsize=7)
+        page.insert_text((30+font.text_length('7', fontsize=7), 410), ' Editable note content.', fontname='testfont', fontsize=12)
+        page = pdf.new_page(width=500, height=500)
+        page.insert_font(fontname='testfont', fontfile=face.path)
+        page.insert_text((30, 50), 'Following source page.', fontname='testfont', fontsize=12)
+        pdf.save(notes_source)
+    notes_info = inspect_pdf(notes_source)
+    notes_records = convert_batch([notes_info], folder/'notes', {name: face for name in notes_info.fonts}, mode='editable')
+    assert notes_records[0].get('content_check') == 'passed', notes_records
+    notes_doc = Document(folder/'notes'/notes_records[0]['output'])
+    from .footnotes import read_part
+    note_text = ''.join(t.text or '' for t in read_part(notes_doc).iter(qn('w:t')))
+    assert note_text == '7 Editable note content.'
+    assert len(list(notes_doc.element.iter(qn('w:footnoteReference')))) == 1
+    assert 'Editable note content.' not in ''.join(p.text for p in notes_doc.paragraphs)
+    continuation = next(p for p in notes_doc.paragraphs if 'Following source page.' in p.text)
+    assert continuation._p.getprevious().xpath('.//w:br[@w:type="page"]')
+    assert not list(notes_doc.element.iter(qn('w:txbxContent')))
+    assert not list(notes_doc.element.iter(qn('w:framePr')))
     comparison = 'not run'
     if compare:
         from .word_review import review_batch
@@ -122,5 +156,6 @@ def run(folder, compare=False):
     (folder/'smoke-result.json').write_text(json.dumps({'status': 'passed', 'pages': 2, 'records': records,
         'frozen': bool(getattr(sys, 'frozen', False)), 'bundled_runtime': bundled, 'gui': 'passed',
         'repeat_conversion': 'passed', 'output_only_docx': 'passed', 'editable_mode': 'passed',
-        'font_embedding': 'passed', 'ruled_tables': 'passed', 'retained_lines': 'passed', 'comparison': comparison}, indent=2), encoding='utf-8')
+        'font_embedding': 'passed', 'ruled_tables': 'passed', 'retained_lines': 'passed',
+        'native_footnotes': 'passed', 'touching_blank_border': 'passed', 'comparison': comparison}, indent=2), encoding='utf-8')
     return records

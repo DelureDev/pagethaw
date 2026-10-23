@@ -307,6 +307,42 @@ def test_text_crossing_table_border_is_rejected(tmp_path, face):
         convert_pdf(info,tmp_path/'result.docx',mapping,mode='editable')
 
 
+@pytest.mark.parametrize('edge', ['top', 'bottom'])
+@pytest.mark.parametrize('keep_lines', [False, True])
+def test_outside_blank_grazing_form_border_remains_editable(tmp_path, face, edge, keep_lines):
+    def draw(page):
+        page.insert_text((40,100),'____________________',fontname='fixture',fontsize=12)
+        bounds = pymupdf.Rect(page.get_text('blocks')[0][:4])
+        if edge == 'top':
+            box = pymupdf.Rect(30,bounds.y1-.7,400,190)
+            y = 150
+        else:
+            box = pymupdf.Rect(30,20,400,bounds.y0+.7)
+            y = 50
+        page.draw_rect(box)
+        page.insert_text((40,y),'Inside the form.',fontname='fixture',fontsize=12)
+    info,mapping=source(tmp_path,face,draw)
+    target=tmp_path/'touching.docx'
+    result=convert_pdf(info,target,mapping,mode='editable',keep_line_breaks=keep_lines)
+    doc=Document(target)
+    assert result['fields']==1
+    assert len(doc.tables)==2
+    assert any('Inside the form.' in t.cell(0,0).text for t in doc.tables)
+    assert not list(doc.element.iter(qn('w:trHeight')))
+
+
+@pytest.mark.parametrize('text,overlap,x', [('Label ____',.7,40),('____________',3,40),('____________',.7,25)])
+def test_real_text_deep_or_side_crossing_form_border_still_rejected(tmp_path,face,text,overlap,x):
+    def draw(page):
+        page.insert_text((x,100),text,fontname='fixture',fontsize=12)
+        bounds=pymupdf.Rect(page.get_text('blocks')[0][:4])
+        page.draw_rect(pymupdf.Rect(30,bounds.y1-overlap,400,190))
+        page.insert_text((40,150),'Inside.',fontname='fixture',fontsize=12)
+    info,mapping=source(tmp_path,face,draw)
+    with pytest.raises(UnsupportedLayout,match='crosses a form border'):
+        convert_pdf(info,tmp_path/'crossing.docx',mapping,mode='editable')
+
+
 def test_indented_text_is_not_centered_and_line_spaces_are_normalized(tmp_path, face):
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     def draw(page):

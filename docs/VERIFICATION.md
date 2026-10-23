@@ -1,5 +1,28 @@
 # Release verification
 
+## 1.3.1 — footnotes and form border blanks (candidate)
+
+- **Passed:** 175 tests, including native note relationships, custom reference
+  marks, independent content/order checks after reload, ambiguous references,
+  separate footers, merged note columns and narrowly bounded border contact.
+- **Passed:** all 20 native Word comparison pages for five two-page forms in both
+  editable modes. The footnote no longer interrupts the risk list; continuation
+  starts on the source page. The formerly rejected blank line converts correctly.
+- **Passed:** normal body and footnote edits survive actual Word save/reopen;
+  both edited pages were inspected without visible overlap or lost text.
+- **Passed:** final generated parts equal the reviewed documents. The existing
+  corpus still accepts 14/rejects 21; only the intended footnote output changes.
+  All 35 Preserve layout outputs equal published 1.3.0 parts; input hashes unchanged.
+- **Passed:** independent read-only code/visual review, local portable build and
+  relocation of both formats with no external Python on PATH. Frozen smoke tests
+  include native footnotes and a blank touching a form border.
+- **Blocked:** the sixth owner form still needs its missing font; no substitution
+  was made. The unrelated stale installed-font alias issue remains unresolved.
+- **Not run yet:** hosted fresh-VM candidate and public-download verification.
+- **Not exact:** field geometry, paragraph wrapping and header placement can differ;
+  Word's standard footnote separator is shorter. Other Word versions and printing
+  were not tested. Private documents and fonts are excluded from distribution.
+
 ## 1.3.0 — shared editable fidelity
 
 Local Windows checks, 2026-10-23, source `6473e9ae6a9289dde451f4c639d31aeab3008777`:

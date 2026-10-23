@@ -1,5 +1,39 @@
 # Project state
 
+## 1.3.1 — editable footnotes and touching blank lines (candidate)
+
+2026-10-23: owner requested fixes for the two six-file test failures below.
+Implementation is on `fix/editable-footnotes-and-borders`; publication is pending.
+Native Word footnotes now retain uniquely matched raised reference marks and
+ordinary editable note paragraphs. The following source-page boundary is retained.
+An underscore-only blank may graze a horizontal form border by at most 1.5 pt;
+real text, deeper intersections and side crossings remain rejected.
+
+**Passed:** 175 tests; independent code review after fixing two recognition edge
+cases; all 20 native Word comparison pages for five forms in both editable modes;
+two actual Word edit/save/reopen pages; final DOCX parts equal reviewed artifacts.
+The previously failing forms each remain two pages with the source content boundary.
+All six PDF hashes are unchanged. The missing-font file remains blocked without
+substitution, as explicitly requested by the owner.
+
+**Passed:** prior editable corpus still accepts 14/rejects 21; 13 accepted outputs
+are unchanged by every DOCX part in each mode, and the one intended footnote change
+equals the freshly reviewed output. All 35 Preserve layout outputs equal published
+1.3.0 parts. Local build and both relocated portable formats pass, including the
+new native-note/border smoke fixture, clean preferences and no Python on PATH.
+
+**Not run yet:** hosted candidate/fresh VM and public-download readback. The existing
+stale-font-alias registry/GDI discrepancy is not changed by this release; correct-font
+visual proof uses active faces whose outlines and metrics were read back from GDI.
+No font installation, registry edits or guard bypass occurred. Pixel-identical layout,
+other Word versions and printing remain unverified. Private evidence is in
+`.private/form-boundary-footnotes/final-audit.json` and its neighboring folders.
+
+Independent read-only review: `routing_reviewer`, requested Sol/high, accepted role
+request; backend identity not independently confirmed. The lead owned all changes.
+Next: finish hosted binary checks, publish 1.3.1, deliver the reviewed DOCX files and
+verified EXE, then record exact release hashes and checks here.
+
 ## Six additional owner PDFs — test findings, 2026-10-23
 
 Fresh testing of six private two-page forms is **not a full batch PASS**. Product

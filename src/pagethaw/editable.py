@@ -21,6 +21,7 @@ from docx.oxml.ns import qn
 from docx.shared import Pt, RGBColor
 from .ruled_tables import find_grids, partition
 from .text_spacing import TextSpacing, source_tracking
+from .footnotes import find_notes, create_part, add_note, read_part
 
 
 class UnsupportedLayout(ValueError):
@@ -89,6 +90,22 @@ def contains(outer, inner, tolerance=1):
     return (outer+(-tolerance, -tolerance, tolerance, tolerance)).contains(inner)
 
 
+def blank_touches_border(box, line):
+    """An outside blank can have a descender bbox just across a horizontal edge.
+
+    Preserve it as an ordinary expanding field. This exception never applies to
+    labels, to vertical-edge crossings, or to a blank whose baseline is inside.
+    """
+    if not re.fullmatch(r'\s*_{3,}\s*', line.text):
+        return False
+    if line.bbox.x0 < box.x0 or line.bbox.x1 > box.x1:
+        return False
+    baselines = [s['origin'][1] for s in line.spans]
+    overlap = min(box.y1, line.bbox.y1)-max(box.y0, line.bbox.y0)
+    return (0 < overlap <= min(1.5, line.size*.2) and
+            (max(baselines) <= box.y0 or min(baselines) >= box.y1))
+
+
 def graphics_on(page, lines):
     """Separate simple outer boxes/rules from standalone graphics such as logos."""
     boxes, rules, rects = [], [], []
@@ -122,7 +139,8 @@ def graphics_on(page, lines):
             reject('nested or overlapping table borders are not supported.')
         if any(intersects(box, r) or (box.y0 < r.y0 < box.y1 and r.x1 > box.x0 and r.x0 < box.x1) for r in rects+rules):
             reject('a table grid or graphics inside a bordered form need manual reconstruction.')
-        if any(intersects(box, l.bbox) and not contains(box, l.bbox) for l in lines):
+        if any(intersects(box, l.bbox) and not contains(box, l.bbox) and
+               not blank_touches_border(box, l) for l in lines):
             reject('text crosses a form border.')
     # Join adjacent vector glyphs into one embedded logo. Text is never rasterized.
     clusters = []
@@ -246,6 +264,9 @@ class Writer:
         self.last_field = None
         self.spacing = TextSpacing(mapping)
         self.keep_line_breaks = keep_line_breaks
+        self.note_refs = {}
+        self.note_rises = {}
+        self.emitted_refs = set()
 
     def minimum_spacing(self, lines):
         # Joining unequal-size source rows changes which font sets the first
@@ -286,6 +307,12 @@ class Writer:
         run.font.size = Pt(span['size'])
         run.font.color.rgb = RGBColor.from_string(f"{span['color']:06X}")
         run._r.get_or_add_rPr().append(element('kern', val=1))
+        if id(span) in self.note_rises:
+            run._r.get_or_add_rPr().append(element('position', val=round(self.note_rises[id(span)]*2)))
+        if id(span) in self.note_refs and text.strip() and id(span) not in self.emitted_refs:
+            note = self.note_refs[id(span)]
+            run._r.insert(1, element('footnoteReference', id=note.number, customMarkFollows=1))
+            self.emitted_refs.add(id(span))
         self.expected.extend((c, face.family, face.bold, face.italic) for c in text if not c.isspace())
         return run
 
@@ -373,7 +400,8 @@ class Writer:
                 if (previous_x is not None and span['bbox'][0]-previous_x > span['size']*.65
                         and text and not text[0].isspace() and not previous_text.endswith(' ')):
                     self.run(para, span, ' ')
-                tracking = source_tracking(span, self.mapping[span['font']]) if self.keep_line_breaks else None
+                tracking = (source_tracking(span, self.mapping[span['font']])
+                            if self.keep_line_breaks and id(span) not in self.note_rises else None)
                 if tracking is not None:
                     raw = ''.join(c['c'] for c in span['chars'])
                     start = len(raw)-len(raw.lstrip()) if si == 0 else 0
@@ -604,10 +632,16 @@ class Writer:
 
 def build_document(pdf, mapping, dpi=144, cancel=None, keep_line_breaks=False):
     pages = []
+    note_plans, notes = [], []
     for page in pdf:
         cancelled(cancel)
         lines = lines_on(page)
         boxes, rules, graphics, grids = graphics_on(page, lines)
+        plan = find_notes(lines, rules, page.rect.height, reject)
+        note_plans.append(plan)
+        for note in plan[0]:
+            note.number = len(notes)+1
+            notes.append(note)
         tables = [(grid, *partition(grid, lines, reject)) for grid in grids]
         consumed = {item for _, _, ids in tables for item in ids}
         sequence = [(l.bbox.y0, [l]) for l in lines if id(l) not in consumed]
@@ -636,19 +670,24 @@ def build_document(pdf, mapping, dpi=144, cancel=None, keep_line_breaks=False):
     sec.left_margin, sec.right_margin = Pt(left), Pt(right)
     sec.top_margin = sec.bottom_margin = Pt(18)
     writer = Writer(doc, mapping, width, left, dpi, cancel, keep_line_breaks)
+    writer.note_refs = {id(n.anchor): n for n in notes}
+    writer.note_rises = {id(s): rise for n in notes for s, rise in [(n.anchor, n.rise), (n.label, n.label_rise)]}
     if keep_line_breaks:
         for node in list(doc.settings.element.iter(qn('w:doNotExpandShiftReturn'))):
             node.getparent().remove(node)
     source_chars = Counter(c['c'] for lines, *_ in pages for l in lines for s in l.spans for c in s['chars'] if not c['c'].isspace())
     removed = Counter()
     for page, (lines, boxes, rules, graphics, tables, reading) in zip(pdf, pages):
-        # Continue ordinary body pages; a new graphic/title header retains a page
-        # boundary. This mode deliberately allows the page count to change.
+        # Continue ordinary body pages. A footer note is tied to its source-page
+        # anchor: retain the following boundary so the next page's body does not
+        # get pulled above it. This is a normal editable Word page break.
         body_size = sorted(l.size for l in lines)[len(lines)//2]
         new_title = lines[0].bold and lines[0].size > body_size*1.2
-        if page.number and (new_title or any(g.y0 < page.rect.height*.15 for g in graphics)):
+        if page.number and (note_plans[page.number-1][0] or new_title or
+                            any(g.y0 < page.rect.height*.15 for g in graphics)):
             doc.add_page_break()
-        consumed = set()
+        _, note_ids, note_rules = note_plans[page.number]
+        consumed = set(note_ids)
         events = []
         for grid, cells, ids in tables:
             consumed.update(ids)
@@ -684,6 +723,8 @@ def build_document(pdf, mapping, dpi=144, cancel=None, keep_line_breaks=False):
         for line in body:
             events.append((line.bbox.y0, 'line', line))
         for rule in rules:
+            if id(rule) in note_rules:
+                continue
             underline = [s for l in lines for s in l.spans
                          if abs(s['origin'][1]-rule.y0) < s['size']*.35 and
                          abs(s['bbox'][0]-rule.x0) < 2 and abs(s['bbox'][2]-rule.x1) < 2]
@@ -751,43 +792,88 @@ def build_document(pdf, mapping, dpi=144, cancel=None, keep_line_breaks=False):
         for line in lines:
             for match in re.finditer(r'(?<!\w)_{3,}(?!\w)', line.text):
                 removed.update(match.group())
-    actual_chars = Counter(c for c, *_ in writer.expected)
+    body_expected = writer.expected
+    note_expected = {}
+    if notes:
+        part = create_part(doc)
+        for note in notes:
+            writer.expected = []
+            writer.flow(add_note(part, note.number), note.lines, width, left=left)
+            note_expected[str(note.number)] = writer.expected
+        writer.expected = body_expected
+    actual_chars = Counter(c for c, *_ in body_expected)
+    actual_chars.update(c for signature in note_expected.values() for c, *_ in signature)
     if source_chars != actual_chars+removed:
         raise ValueError('Editable conversion did not account for every source character.')
     # Independently compare the emitted order and face of every non-whitespace
     # character with the extracted reading sequence, rather than trusting only
     # a ledger written by the emitter itself.
-    source_signature = []
-    for *_, reading in pages:
-        for line in reading:
+    def signature(lines, anchors=None):
+        result = []
+        for line in lines:
             blanks = {i for m in re.finditer(r'(?<!\w)_{3,}(?!\w)', line.text) for i in range(m.start(), m.end())}
             index = 0
             for span in line.spans:
                 face = mapping[span['font']]
+                if anchors is not None and id(span) in writer.note_refs:
+                    note = writer.note_refs[id(span)]
+                    anchors.append((len(result), note.marker, str(note.number)))
                 for char in span['chars']:
                     if index not in blanks and not char['c'].isspace():
-                        source_signature.append((char['c'], face.family, face.bold, face.italic))
+                        result.append((char['c'], face.family, face.bold, face.italic))
                     index += 1
-    if writer.expected != source_signature:
+        return result
+    anchors = []
+    reading = [line for page, plan in zip(pages, note_plans) for line in page[-1] if id(line) not in plan[1]]
+    source_signature = signature(reading, anchors)
+    source_notes = {str(n.number): signature(n.lines) for n in notes}
+    if body_expected != source_signature or note_expected != source_notes:
         raise ValueError('Editable output text, reading order or emphasis verification failed.')
-    return doc, writer.expected, writer.field_count
+    expected = {'body': source_signature, 'notes': source_notes, 'anchors': anchors} if notes else source_signature
+    return doc, expected, writer.field_count
 
 
 def verify_document(doc, expected):
-    if list(doc.element.iter(qn('w:txbxContent'))) or list(doc.element.iter(qn('w:framePr'))):
-        raise ValueError('Editable output unexpectedly contains positioned text.')
-    actual = []
-    for run in doc.element.iter(qn('w:r')):
-        texts = ''.join(t.text or '' for t in run.iter(qn('w:t')))
-        if not texts.strip():
-            continue
-        rpr = run.find(qn('w:rPr'))
-        fonts = rpr.find(qn('w:rFonts')) if rpr is not None else None
-        if fonts is None:
-            raise ValueError('Editable output contains text without an approved font.')
-        def on(name):
-            node = rpr.find(qn('w:'+name))
-            return node is not None and node.get(qn('w:val'), '1') not in ('0', 'false')
-        actual.extend((c, fonts.get(qn('w:ascii')), on('b'), on('i')) for c in texts if not c.isspace())
+    def check_part(root):
+        if list(root.iter(qn('w:txbxContent'))) or list(root.iter(qn('w:framePr'))):
+            raise ValueError('Editable output unexpectedly contains positioned text.')
+        actual, anchors = [], []
+        for run in root.iter(qn('w:r')):
+            texts = ''.join(t.text or '' for t in run.iter(qn('w:t')))
+            for ref in run.findall(qn('w:footnoteReference')):
+                if ref.get(qn('w:customMarkFollows')) != '1' or not re.fullmatch(r'(?:[0-9]{1,3}|[*†‡])', texts):
+                    raise ValueError('Editable footnote reference verification failed.')
+                anchors.append((len(actual), texts, ref.get(qn('w:id'))))
+            if not texts.strip():
+                continue
+            rpr = run.find(qn('w:rPr'))
+            fonts = rpr.find(qn('w:rFonts')) if rpr is not None else None
+            if fonts is None:
+                raise ValueError('Editable output contains text without an approved font.')
+            def on(name):
+                node = rpr.find(qn('w:'+name))
+                return node is not None and node.get(qn('w:val'), '1') not in ('0', 'false')
+            actual.extend((c, fonts.get(qn('w:ascii')), on('b'), on('i')) for c in texts if not c.isspace())
+        return actual, anchors
+    actual, anchors = check_part(doc.element)
+    if isinstance(expected, dict):
+        root = read_part(doc)
+        actual_notes = {}
+        for node in root.findall(qn('w:footnote')):
+            number = node.get(qn('w:id'))
+            if node.get(qn('w:type')) in ('separator', 'continuationSeparator') and number in ('-1', '0'):
+                if list(node.iter(qn('w:t'))):
+                    raise ValueError('Editable footnote separator verification failed.')
+                continue
+            if number in actual_notes or number not in expected['notes']:
+                raise ValueError('Editable footnote identity verification failed.')
+            actual_notes[number], nested = check_part(node)
+            if nested:
+                raise ValueError('Editable footnote reference verification failed.')
+        if actual_notes != expected['notes'] or anchors != expected['anchors']:
+            raise ValueError('Editable footnote content or reference verification failed.')
+        expected = expected['body']
+    elif anchors or any(r.reltype.endswith('/footnotes') for r in doc.part.rels.values()):
+        raise ValueError('Editable output contains unexpected footnotes.')
     if actual != expected:
         raise ValueError('Editable output text, reading order or emphasis verification failed.')

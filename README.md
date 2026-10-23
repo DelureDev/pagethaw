@@ -79,7 +79,8 @@ whole folder and keep `_internal` beside its `PageThaw.exe`.
 > Conversion is not pixel-perfect: always check the result.
 
 - Editable mode rejects ambiguous columns, complex grids and overlapping graphics.
-  It does not reconstruct native Word footnotes or automatic numbered lists.
+  Clear bottom-of-page notes become editable Word footnotes; unclear references are
+  rejected. Automatic numbered lists are not reconstructed.
 - In Preserve layout mode, text boxes **do not reflow**. Long edits may need manual adjustment.
 - Missing or different fonts can change spacing. Enable **Include fonts in Word files**
   for permitted static TrueType fonts. Restricted or unsupported fonts are skipped

@@ -55,7 +55,7 @@ try {
             throw "$kind smoke failed: $($process.ExitCode)"
         }
         $report = Get-Content -Raw -LiteralPath (Join-Path $out 'smoke-result.json') | ConvertFrom-Json
-        if ($report.status -ne 'passed' -or -not $report.frozen -or $report.bundled_runtime -ne 'passed' -or $report.gui -ne 'passed' -or $report.retained_lines -ne 'passed') { throw "$kind runtime verification failed." }
+        if ($report.status -ne 'passed' -or -not $report.frozen -or $report.bundled_runtime -ne 'passed' -or $report.gui -ne 'passed' -or $report.retained_lines -ne 'passed' -or $report.native_footnotes -ne 'passed' -or $report.touching_blank_border -ne 'passed') { throw "$kind runtime verification failed." }
         $checks[$kind] = $report
     }
     $notices = Join-Path $work 'notices'
