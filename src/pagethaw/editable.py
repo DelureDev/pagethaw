@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass
 import io
+import math
 import re
 from statistics import median
 
@@ -19,7 +20,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Pt, RGBColor
 from .ruled_tables import find_grids, partition
-from .text_spacing import TextSpacing
+from .text_spacing import TextSpacing, source_tracking
 
 
 class UnsupportedLayout(ValueError):
@@ -237,13 +238,21 @@ def table_separator(parent):
 
 
 class Writer:
-    def __init__(self, doc, mapping, width, left, dpi, cancel):
+    def __init__(self, doc, mapping, width, left, dpi, cancel, keep_line_breaks=False):
         self.doc, self.mapping = doc, mapping
         self.width, self.left, self.dpi, self.cancel = width, left, dpi, cancel
         self.expected = []
         self.field_count = 0
         self.last_field = None
         self.spacing = TextSpacing(mapping)
+        self.keep_line_breaks = keep_line_breaks
+
+    def minimum_spacing(self, lines):
+        # Joining unequal-size source rows changes which font sets the first
+        # Word baseline. The source-row descent model needs retained breaks.
+        if not self.keep_line_breaks and max(l.size for l in lines)-min(l.size for l in lines) > .02:
+            return None
+        return self.spacing.minimum(lines)
 
     def text_metrics(self, para, lines, responsive=True):
         """Set paragraph-mark metrics too, including empty form/caption cells."""
@@ -260,6 +269,10 @@ class Writer:
         multiple = self.spacing.multiple(lines) if responsive else None
         if multiple is not None:
             para.paragraph_format.line_spacing = multiple
+        elif responsive:
+            minimum = self.minimum_spacing(lines)
+            if minimum is not None:
+                para.paragraph_format.line_spacing = Pt(minimum[0])
 
     def run(self, para, span, text):
         face = self.mapping[span['font']]
@@ -289,13 +302,17 @@ class Writer:
         pf.widow_control = True
         return para
 
-    def text(self, parent, lines, before=0, title=False, left=None, width=None):
+    def text(self, parent, lines, before=0, title=False, left=None, width=None, measured_gap=False):
         self.last_field = None
         para = self.paragraph(parent, max(l.size for l in lines), before)
         first = lines[0]
         left = self.left if left is None else left
         width = self.width if width is None else width
         pf = para.paragraph_format
+        if self.keep_line_breaks and measured_gap:
+            # Only baseline/metric-derived gaps bypass the conservative cap.
+            # A raw PDF bounding-box gap is not a Word paragraph distance.
+            pf.space_before = Pt(max(0, before))
         starts = [l.bbox.x0 for l in lines]
         ends = [l.bbox.x1 for l in lines]
         centers = [(a+b)/2 for a, b in zip(starts, ends)]
@@ -321,6 +338,15 @@ class Writer:
             pf.first_line_indent = Pt(max(-inset, min(width*.4, starts[0]-continuation)))
             if len(lines) >= 3 and all(abs(x-(left+width)) < tolerance for x in ends[:-1]):
                 para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            if self.keep_line_breaks and len(lines) >= 2 and all(l.text.strip() for l in lines):
+                text_ends = [max(c['bbox'][2] for s in l.spans for c in s['chars'] if not c['c'].isspace()) for l in lines]
+                edge = median(text_ends[:-1])
+                if (edge > left+width*.85 and all(abs(x-edge) < tolerance for x in text_ends[:-1])
+                        and all(abs(x-continuation) < tolerance for x in starts[1:])):
+                    para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                    # Round the source edge outward. Median/nearest rounding
+                    # can make a full source line a fraction of a twip too wide.
+                    pf.right_indent = Pt(max(0, math.floor((left+width-max(text_ends[:-1])-.1)*20)/20))
         if len(lines) > 1:
             baselines = [l.spans[0]['origin'][1] for l in lines]
             leading = median(b-a for a, b in zip(baselines, baselines[1:]))
@@ -333,7 +359,9 @@ class Writer:
                 # Keep hyphens, but never concatenate Cyrillic/Latin words merely
                 # because PDF line boundaries are not actual space characters.
                 previous = lines[index-1].text.rstrip()
-                if previous and not previous.endswith(('-', '\u00ad')):
+                if self.keep_line_breaks:
+                    self.run(para, line.spans[0], '').add_break()
+                elif previous and not previous.endswith(('-', '\u00ad')):
                     self.run(para, line.spans[0], ' ')
             previous_x = None
             for si, span in enumerate(line.spans):
@@ -342,9 +370,31 @@ class Writer:
                     text = text.lstrip()
                 if si == len(line.spans)-1:
                     text = text.rstrip()
-                if previous_x is not None and span['bbox'][0]-previous_x > span['size']*.65 and text and not text[0].isspace():
+                if (previous_x is not None and span['bbox'][0]-previous_x > span['size']*.65
+                        and text and not text[0].isspace() and not previous_text.endswith(' ')):
                     self.run(para, span, ' ')
-                self.run(para, span, re.sub(r'\s+', ' ', text))
+                tracking = source_tracking(span, self.mapping[span['font']]) if self.keep_line_breaks else None
+                if tracking is not None:
+                    raw = ''.join(c['c'] for c in span['chars'])
+                    start = len(raw)-len(raw.lstrip()) if si == 0 else 0
+                    end = len(raw.rstrip()) if si == len(line.spans)-1 else len(raw)
+                    groups = []
+                    for c, pitch in zip(raw[start:end], tracking[start:end]):
+                        c = ' ' if c.isspace() else c
+                        if c == ' ' and groups and groups[-1][0].endswith(' '):
+                            continue
+                        if groups and groups[-1][1] == pitch:
+                            groups[-1] = (groups[-1][0]+c, pitch)
+                        else:
+                            groups.append((c, pitch))
+                    for part, pitch in groups:
+                        run = self.run(para, span, part)
+                        pr = run._r.get_or_add_rPr()
+                        pr.remove(pr.find(qn('w:kern')))
+                        pr.append(element('spacing', val=pitch))
+                else:
+                    self.run(para, span, re.sub(r'\s+', ' ', text))
+                previous_text = text
                 previous_x = span['bbox'][2]
         return para
 
@@ -475,6 +525,11 @@ class Writer:
         return table
 
     def flow(self, parent, lines, width, top=None, left=None):
+        lines = list(lines)
+        # Extractors sometimes return a whitespace-only row below the last
+        # signature. It must not create an otherwise empty final Word page.
+        while lines and not lines[-1].text.strip():
+            lines.pop()
         check_columns(lines)
         self.spacing.flow(lines)
         left = self.left if left is None else left
@@ -482,15 +537,37 @@ class Writer:
         pending = []
         previous = None
         before = 0
+        previous_group = None
+        emitted = None
         def flush():
-            nonlocal pending
+            nonlocal pending, emitted
             if pending:
-                self.text(parent, pending, before, left=left, width=width)
+                spacing = before
+                measured_gap = False
+                leading = self.spacing.leading(pending)
+                minimum = self.minimum_spacing(pending) if self.spacing.multiple(pending) is None else None
+                if (previous_group is not None and leading is not None and emitted is not None
+                        and emitted[0] is previous_group and emitted[1] is not None
+                        and self.spacing.style([previous_group, pending[0]]) == self.spacing.style(pending)):
+                    delta = pending[0].spans[0]['origin'][1]-previous_group.spans[0]['origin'][1]
+                    spacing = max(0, delta-emitted[1])
+                    measured_gap = True
+                elif (previous_group is not None and emitted is not None and emitted[0] is previous_group
+                      and minimum is not None and emitted[2] is not None and minimum[3] == emitted[2][3]):
+                    delta = pending[0].spans[0]['origin'][1]-previous_group.spans[0]['origin'][1]
+                    spacing = max(0, delta-minimum[0]-emitted[2][2]+minimum[1])
+                    measured_gap = True
+                self.text(parent, pending, spacing, left=left, width=width, measured_gap=measured_gap)
+                emitted = (pending[-1], leading, minimum)
                 pending = []
         for line in lines:
             cancelled(self.cancel)
             gap = line.bbox.y0-(previous.bbox.y1 if previous else (top if top is not None else line.bbox.y0))
             boundary = (previous is None or line.block != previous.block or line.field or previous.field or
+                        id(line) in self.spacing.paragraph_starts or
+                        (previous is not None and abs(line.size-previous.size) > min(line.size, previous.size)*.1
+                         and all(abs(s['size']-line.size) < .02 for s in line.spans)
+                         and all(abs(s['size']-previous.size) < .02 for s in previous.spans)) or
                         (previous.bold and not line.bold) or
                         bool(re.match(r'^\s*(?:[-•·]|\d+[.)])\s', line.text)) or
                         (previous is not None and bool(re.match(r'^\s*[-•·]\s', previous.text)) and
@@ -502,6 +579,7 @@ class Writer:
                           line.text.lstrip()[:1].isupper() or re.match(r'^\s*[\w -]{2,35}:', line.text))))
             if boundary:
                 flush()
+                previous_group = previous if previous is not None and not previous.field else None
                 before = max(0, gap)
             if line.field:
                 if (previous is not None and not previous.field and
@@ -524,7 +602,7 @@ class Writer:
         flush()
 
 
-def build_document(pdf, mapping, dpi=144, cancel=None):
+def build_document(pdf, mapping, dpi=144, cancel=None, keep_line_breaks=False):
     pages = []
     for page in pdf:
         cancelled(cancel)
@@ -539,6 +617,12 @@ def build_document(pdf, mapping, dpi=144, cancel=None):
     all_lines = [l for lines, *_ in pages for l in lines if l.text.strip()]
     left = min(72, max(12, min(l.bbox.x0 for l in all_lines)))
     right = min(72, max(12, pdf[0].rect.width-max(l.bbox.x1 for l in all_lines)))
+    if keep_line_breaks:
+        # A full source row can touch the inferred page margin. Round the
+        # available area outward, including small source margins, rather than
+        # forcing its last word onto an extra line because of twip rounding.
+        left = math.floor(min(72, max(0, min(l.bbox.x0 for l in all_lines)))*20)/20
+        right = math.floor(min(72, max(0, pdf[0].rect.width-max(l.bbox.x1 for l in all_lines)-.1))*20)/20
     width = pdf[0].rect.width-left-right
     doc = Document()
     default_span = max((s for l in all_lines for s in l.spans), key=lambda s: len(s['chars']))
@@ -551,7 +635,10 @@ def build_document(pdf, mapping, dpi=144, cancel=None):
     sec.page_width, sec.page_height = Pt(pdf[0].rect.width), Pt(pdf[0].rect.height)
     sec.left_margin, sec.right_margin = Pt(left), Pt(right)
     sec.top_margin = sec.bottom_margin = Pt(18)
-    writer = Writer(doc, mapping, width, left, dpi, cancel)
+    writer = Writer(doc, mapping, width, left, dpi, cancel, keep_line_breaks)
+    if keep_line_breaks:
+        for node in list(doc.settings.element.iter(qn('w:doNotExpandShiftReturn'))):
+            node.getparent().remove(node)
     source_chars = Counter(c['c'] for lines, *_ in pages for l in lines for s in l.spans for c in s['chars'] if not c['c'].isspace())
     removed = Counter()
     for page, (lines, boxes, rules, graphics, tables, reading) in zip(pdf, pages):
@@ -569,11 +656,21 @@ def build_document(pdf, mapping, dpi=144, cancel=None):
         for graphic in graphics:
             title = [l for l in lines if l.bbox.x0 > graphic.x1+5 and
                      l.bbox.y0 < graphic.y1+20 and l.bbox.y1 > graphic.y0]
+            side = 'left'
+            if not title and graphic.x0 > page.rect.width/2:
+                adjacent = [l for l in lines if l.bbox.x1 < graphic.x0-5 and
+                            l.bbox.y0 < graphic.y1 and l.bbox.y1 > graphic.y0]
+                # A heading and its subordinate date/subtitle can share a
+                # source block beside a right-hand logo. Do not absorb later
+                # body blocks or turn arbitrary side-by-side text into a header.
+                if (adjacent and adjacent[0].bold and len({l.block for l in adjacent}) == 1
+                        and all(l.size <= adjacent[0].size for l in adjacent)):
+                    title, side = adjacent, 'right'
             header = (graphic.y0 < page.rect.height*.15 and graphic.height < page.rect.height*.15 and
-                      title and all(l.bold for l in title))
+                      title and (side == 'right' or all(l.bold for l in title)))
             if header:
                 consumed.update(id(l) for l in title)
-                events.append((min(graphic.y0, title[0].bbox.y0), 'header', (graphic, title)))
+                events.append((min(graphic.y0, title[0].bbox.y0), 'header', (graphic, title, side)))
             else:
                 events.append((graphic.y0, 'image', graphic))
         for box in boxes:
@@ -610,13 +707,21 @@ def build_document(pdf, mapping, dpi=144, cancel=None):
                 continue
             flush_body()
             if kind == 'header':
-                graphic, title = data
-                split = min(width*.45, max(graphic.width+8, min(l.bbox.x0 for l in title)-left-6))
-                table = table_at(doc, [split, width-split])
-                writer.image(table.cell(0, 0), page, graphic, min(graphic.width, split-4))
-                # Each source title line remains a paragraph, not a positioned box.
-                for line in title:
-                    writer.text(table.cell(0, 1), [line], title=True)
+                graphic, title, side = data
+                if side == 'right':
+                    split = graphic.x0-left
+                    # A logo can extend beyond the body text's right edge.
+                    # Preserve its actual width in this header only.
+                    table = table_at(doc, [split, graphic.width])
+                    writer.flow(table.cell(0, 0), title, split, min(graphic.y0, title[0].bbox.y0), left=left)
+                    writer.image(table.cell(0, 1), page, graphic, graphic.width)
+                else:
+                    split = min(width*.45, max(graphic.width+8, min(l.bbox.x0 for l in title)-left-6))
+                    table = table_at(doc, [split, width-split])
+                    writer.image(table.cell(0, 0), page, graphic, min(graphic.width, split-4))
+                    # Each source title line remains a paragraph, not a positioned box.
+                    for line in title:
+                        writer.text(table.cell(0, 1), [line], title=True)
                 table_separator(doc)
                 last_bottom = max(graphic.y1, title[-1].bbox.y1)
             elif kind == 'box':

@@ -47,6 +47,10 @@ Type in a blank cell; longer entries move the following content down. This mode
 supports single-column forms and simple tables with complete row/column borders.
 Paragraph indents and alignment are reconstructed. Spacing and page counts can change.
 
+For closer line wrapping, enable **Keep PDF line breaks in normal paragraphs**.
+Text stays editable; those line breaks remain when you edit, so longer rewrites
+may need some breaks removed. This option is off by default.
+
 **Preserve layout** keeps the original placement with text boxes. Choose it when
 appearance matters more than extensive editing. The app never silently switches modes.
 

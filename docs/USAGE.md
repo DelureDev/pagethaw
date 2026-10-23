@@ -20,6 +20,15 @@ no automatic fallback to the other mode. Footnotes and list numbers remain ordin
 text, not native Word footnote/list fields. Source page boundaries may be removed
 when body text continues; new title/graphic headers retain a page boundary.
 
+**Keep PDF line breaks in normal paragraphs** is an optional editable-mode setting.
+It retains soft line breaks within related paragraphs and reconstructs simple
+Latin/Cyrillic/Greek character spacing when the chosen font's metrics can be
+verified. It does not create text boxes, shrink type or fix the height of text.
+Unsupported shaping and uncertain metrics use the normal Word fallback.
+The setting is off initially and remembered. Existing breaks remain when typing;
+remove a break when you want a long rewrite to wrap freely. Source page boundaries,
+form-cell geometry and rendering in other Word versions can still differ.
+
 **Preserve layout** retains the existing positioned-text converter. It preserves:
 
 - Text content, approximate positions, font sizes, selected font faces and styles.
@@ -171,6 +180,8 @@ Example `font-map.json` (use the **actual font names reported by --inspect**):
 The CLI defaults to `--mode layout` for compatibility with existing scripts.
 Use `--mode editable` for normal paragraphs. The `--rules` option applies only to
 layout mode; editable mode always reconstructs standalone blanks as expanding cells.
+Add `--keep-line-breaks` with editable mode to retain the PDF's soft line breaks
+inside normal paragraphs. It is off by default and has no effect in layout mode.
 
 Providing this map explicitly approves those substitutions. Mapped font files
 must already be registered with Windows. Add `--rules` for form blank lines or

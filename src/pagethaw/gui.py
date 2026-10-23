@@ -46,6 +46,7 @@ class App(tk.Tk):
         self.set_status('Choose your PDFs to begin. Files stay on your computer.')
         self.rules = tk.BooleanVar(value=False)
         self.embed = tk.BooleanVar(value=settings.get('embed_fonts') is True)
+        self.keep_lines = tk.BooleanVar(value=settings.get('keep_line_breaks') is True)
         self.dpi = tk.StringVar(value='144')
         self.buttons = []
         self.make_ui()
@@ -155,6 +156,10 @@ class App(tk.Tk):
                                            variable=self.embed, command=self.mode_changed)
         self.embed_option.pack(anchor='w', pady=(5, 0))
         self.buttons.append(self.embed_option)
+        self.keep_lines_option = ttk.Checkbutton(self.font_frame, text=self.t('Keep PDF line breaks in normal paragraphs'),
+                                                variable=self.keep_lines, command=self.mode_changed)
+        self.keep_lines_option.pack(anchor='w', pady=(5, 0))
+        self.buttons.append(self.keep_lines_option)
         ttk.Label(wrap, text=self.t('Save Word files to'), font=('Segoe UI', 10, 'bold')).grid(row=5, column=0, sticky='w', pady=(16, 5))
         output_row = ttk.Frame(wrap)
         output_row.grid(row=6, column=0, sticky='ew')
@@ -193,13 +198,16 @@ class App(tk.Tk):
         editable = self.mode.get() == 'editable'
         self.mode_help.configure(text=self.t('Normal paragraphs, expanding fields and simple ruled tables. Spacing and page count may change.' if editable else
             'Text stays in positioned boxes. Long edits do not reflow the page. Open results in desktop Word.'))
+        if editable and self.keep_lines.get():
+            self.mode_help.configure(text=self.t('Normal editable paragraphs with PDF line breaks. These breaks remain when you edit the text.'))
         self.rules_option.configure(state='disabled' if editable else 'normal')
+        self.keep_lines_option.configure(state='normal' if editable and not self.busy else 'disabled')
 
     def mode_changed(self):
         self.refresh_mode()
         self.file_results.clear()
         self.refresh_files()
-        preferences.save({'mode': self.mode.get(), 'embed_fonts': self.embed.get()})
+        preferences.save({'mode': self.mode.get(), 'embed_fonts': self.embed.get(), 'keep_line_breaks': self.keep_lines.get()})
 
     def toggle_options(self):
         self.options_expanded = not self.options_expanded
@@ -404,7 +412,8 @@ class App(tk.Tk):
         mapping = {name: self.mapping[name] for name in required}
         output, rules, dpi, mode = Path(self.output.get()).resolve(), self.rules.get(), int(self.dpi.get()), self.mode.get()
         embed = self.embed.get()
-        preferences.save({'output': str(output), 'mode': mode, 'embed_fonts': embed})
+        keep_lines = self.keep_lines.get() and mode == 'editable'
+        preferences.save({'output': str(output), 'mode': mode, 'embed_fonts': embed, 'keep_line_breaks': self.keep_lines.get()})
         def finished(records):
             self.last_conversion = (output, infos, records)
             self.converted(records, infos)
@@ -414,7 +423,7 @@ class App(tk.Tk):
             for face in mapping.values():
                 if face.path not in paths or family_conflicts(face, current):
                     raise ValueError('Installed fonts changed. Scan files & fonts again before converting.')
-            return convert_batch(infos, output, mapping, rules=rules, dpi=dpi, mode=mode, embed=embed, cancel=self.cancel,
+            return convert_batch(infos, output, mapping, rules=rules, dpi=dpi, mode=mode, embed=embed, keep_line_breaks=keep_lines, cancel=self.cancel,
                 progress=lambda n, total, r: self.events.put(('progress', f'{n}/{total}: {r["input"]} — {r["status"]}')))
         self.run_job(convert, finished, 'Converting locally…')
 
@@ -475,6 +484,7 @@ class App(tk.Tk):
                     for button in self.buttons:
                         button.configure(state='normal')
                     self.cancel_button.configure(state='disabled')
+                    self.refresh_mode()
                     try:
                         callback(future.result())
                     except InterruptedError as exc:

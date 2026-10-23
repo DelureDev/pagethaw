@@ -1,5 +1,49 @@
 # Release verification
 
+## Unreleased — shared editable fidelity
+
+Local Windows checks, 2026-10-23, branch `fix/editable-page-fidelity`:
+
+- **Passed:** 141 tests and `git diff --check`. Synthetic fixtures cover local
+  spacing evidence, font-metric boundaries, fallback paths, soft breaks, growing
+  cells, unchanged type size, right-hand logos, blank rows, EN/RU state and settings.
+- **Passed:** 35 Preserve layout outputs equal the published baseline by every
+  uncompressed DOCX part; original hashes unchanged. No dependencies or font
+  permissions changed, and no private fonts/documents are added to the repository.
+- **Passed:** editable corpus remains 14 accepted / 21 rejected. Default and
+  retained-line modes each render to 21 Word pages. Final retained-line outputs
+  either have identical parts to reviewed corpus-5 files or were rerendered and
+  independently reviewed (13 changed pages). Default-mode 21 pages were reviewed
+  independently. No visible clipping, overlapping glyphs, lost text or missing
+  images was found. The last-bullet page regression in one form was fixed/rechecked.
+- **Passed:** the reported three-page form has identical wrapping and page
+  assignment for all 80 measured narrative paragraphs. Final output parts equal
+  reviewed attempt-7. This measures those paragraphs, not pixel identity of the
+  entire document or every form cell.
+- **Passed:** 9 main-sample and 8 dense-form edited pages reviewed independently;
+  native Word save/reopen preserves every edited character. Body edits include
+  15 pt text and a 22 pt run; multiline fields expand at 15/20 pt. No text boxes,
+  per-line frames or fixed nonempty text/row heights were introduced. Very long
+  content in a narrow date cell wraps awkwardly across pages.
+- **Passed:** five native Arial spacing probes, including an 18.4 pt minimum
+  at the font-metric boundary and 14/16 pt transitions: all 20 rows intact,
+  maximum baseline-advance error 0.10 pt. The below-bound case retains fallback
+  in unit coverage. Initial probes that produced singleton paragraphs or used
+  a mismatched test-page width do not establish this result.
+- **Passed:** independent bounded code and visual review, with the lead owning
+  fixes. Final native metric-boundary image also inspected by the lead.
+- **Failed — exact fidelity:** source page boundaries still differ in several
+  forms; receipt/field geometry is approximate. Page counts alone are not a
+  fidelity gate. No claim of universal 100% or pixel-identical conversion.
+- **Blocked:** native EN/RU visual inspection while the desktop is in use.
+  No focus was taken; programmatic language/state/persistence checks passed.
+- **Not run:** current candidate build, both-format relocation, fresh Windows VM,
+  release/public download checks, physical printing and other Word versions.
+  Published 1.2.1 gates below are historical, not evidence for these changes.
+
+Private evidence is under `.private/editable/page-fidelity`; see the current
+project-state entry for exact directories. Public tests contain synthetic data.
+
 ## 1.2.1 — editable line spacing
 
 Local checks on Windows, 2026-10-23:

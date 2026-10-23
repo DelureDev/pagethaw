@@ -192,9 +192,9 @@ def check_geometry(pdf, mapping, proofs=None):
                 raise ValueError(f'Page {page.number+1}: stretched or unusually spaced text needs manual conversion.')
 
 
-def convert_pdf(info, target, mapping, rules=False, dpi=144, cancel=None, mode='layout', embed=False):
+def convert_pdf(info, target, mapping, rules=False, dpi=144, cancel=None, mode='layout', embed=False, keep_line_breaks=False):
     if mode == 'editable':
-        return convert_editable(info, target, mapping, dpi, cancel, embed)
+        return convert_editable(info, target, mapping, dpi, cancel, embed, keep_line_breaks)
     if mode != 'layout':
         raise ValueError('Choose Editable text or Preserve layout.')
     """Write atomically and refuse replacement of any existing output."""
@@ -304,7 +304,7 @@ def digest(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def convert_editable(info, target, mapping, dpi=144, cancel=None, embed=False):
+def convert_editable(info, target, mapping, dpi=144, cancel=None, embed=False, keep_line_breaks=False):
     from .editable import build_document, verify_document, cancelled
     target = Path(target)
     if target.exists():
@@ -314,7 +314,7 @@ def convert_editable(info, target, mapping, dpi=144, cancel=None, embed=False):
     validate_mapping(info, mapping)
     cancelled(cancel)
     with pymupdf.open(info.path) as pdf:
-        doc, expected, fields = build_document(pdf, mapping, dpi, cancel)
+        doc, expected, fields = build_document(pdf, mapping, dpi, cancel, keep_line_breaks)
     doc.core_properties.author = 'PageThaw'
     doc.core_properties.title = info.path.stem
     doc.core_properties.comments = 'Flowing paragraphs and expanding form cells. Pagination may differ from the PDF. Review before use.'
@@ -351,7 +351,7 @@ def convert_editable(info, target, mapping, dpi=144, cancel=None, embed=False):
             'substitutions': [name for name in info.fonts if not mapping[name].matches(name)], **embedding}
 
 
-def convert_batch(infos, output, mapping, *, rules=False, dpi=144, cancel=None, progress=None, write_report=False, mode='layout', embed=False):
+def convert_batch(infos, output, mapping, *, rules=False, dpi=144, cancel=None, progress=None, write_report=False, mode='layout', embed=False, keep_line_breaks=False):
     if mode not in ('layout', 'editable'):
         raise ValueError('Choose Editable text or Preserve layout.')
     output = Path(output)
@@ -381,7 +381,7 @@ def convert_batch(infos, output, mapping, *, rules=False, dpi=144, cancel=None, 
             record.update(status='cancelled')
         else:
             try:
-                record.update(convert_pdf(info, output/record['output'], mapping, rules, dpi, cancel, mode=mode, embed=embed))
+                record.update(convert_pdf(info, output/record['output'], mapping, rules, dpi, cancel, mode=mode, embed=embed, keep_line_breaks=keep_line_breaks))
             except InterruptedError as exc:
                 record.update(status='cancelled', error=str(exc))
             except Exception as exc:

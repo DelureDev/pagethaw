@@ -12,6 +12,8 @@ RU = {
     'Converted; some fonts still need installing — Details': 'Готово; часть шрифтов нужно установить — «Подробнее»',
     'Normal paragraphs, expanding fields and simple ruled tables. Spacing and page count may change.': 'Обычные абзацы, поля с изменяемой высотой и простые таблицы. Интервалы и число страниц могут измениться.',
     'Include fonts in Word files when editing is permitted': 'Включать шрифты в Word, если разрешено редактирование',
+    'Keep PDF line breaks in normal paragraphs': 'Сохранять переносы строк PDF внутри обычных абзацев',
+    'Normal editable paragraphs with PDF line breaks. These breaks remain when you edit the text.': 'Обычные редактируемые абзацы с переносами строк из PDF. Переносы сохраняются при правке текста.',
     'Fonts included: {count}': 'Включено шрифтов: {count}',
     'Recipients still need the fonts listed above installed. No font was replaced.': 'Получателям нужно установить перечисленные выше шрифты. Шрифты не заменялись.',
     '{passed} converted; {failed} failed; {cancelled} cancelled. Review the Word files. Some fonts could not be included. Select a file and open Details.': 'Готово: {passed}; ошибок: {failed}; отменено: {cancelled}. Проверьте файлы Word. Часть шрифтов не удалось включить: выберите файл и откройте «Подробнее».',

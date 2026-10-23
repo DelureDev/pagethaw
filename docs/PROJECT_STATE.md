@@ -1,5 +1,61 @@
 # Project state
 
+## Current work — shared editable fidelity improvements, not released
+
+2026-10-23, branch `fix/editable-page-fidelity`. The owner clarified that text
+must remain normal editable paragraphs, and that improvements must apply to the
+algorithm rather than one example. No document-name, wording or Sirius-specific
+conditions were introduced. Source fonts/documents and existing outputs remain
+private and untouched. Published 1.2.1 and its downloads are unchanged.
+
+Implemented local paragraph-boundary/spacing inference, responsive dense leading,
+bounded font-metric minimum spacing, right-hand-logo headers, trailing-blank-row
+handling and optional retained PDF line breaks. Retained lines use ordinary
+paragraphs with soft breaks and bounded character spacing; they do not create
+text boxes or per-line frames. The option is off by default, remembered, translated
+in EN/RU and exposed as `--keep-line-breaks` for editable CLI conversion.
+
+**Passed:** 141 tests; source hashes preserved; 35 Preserve layout outputs match
+the baseline by every uncompressed DOCX part. Editable corpus accepts 14 and
+rejects the same 21 inputs. Default and retained-line results each total 21 native
+Word pages. The main three-page sample matches all 80 measured paragraph wraps
+and source-page assignments; final parts equal the reviewed attempt-7 parts.
+Independent review found no clipping/lost visual content in all affected corpus,
+main-sample and 17 edit-stress pages. Larger text and multiline fields survive
+actual Word save/reopen. Native spacing probes include the metric boundary and
+mixed-size transitions, with maximum measured advance error 0.10 pt.
+
+**Failed — universal exact fidelity:** some form page boundaries and receipt/field
+geometry still differ. Do not describe the main sample's paragraph checks as
+100% pixel matching. A long date can expand a narrow cell across many pages;
+content survives but that is not comfortable editing. Forced source page breaks
+were rejected after adding pages to multiple forms.
+
+**Blocked:** native EN/RU visual inspection because the desktop was actively in
+use; input automation stopped. **Not run:** current branch's build, relocation,
+fresh-VM, release, other Word versions and physical printing. Unit UI checks
+passed; historical release gates below do not validate this branch. Keep changes
+on the development branch until the release gates and remaining fidelity work
+are addressed. See [active plan](PAGE_FIDELITY_PLAN.md) and
+[current evidence](VERIFICATION.md#unreleased--shared-editable-fidelity).
+
+Private evidence: `.private/editable/page-fidelity/attempt-final` (same parts as
+reviewed `attempt-7`), `corpus-final/qa.json` (per-file final/reused render paths),
+`natural-final`, `edit-stress-final`, `dense-edit-stress`,
+`minimum-probe-edge-verified`, and `layout-regression-verification.json`.
+Early probes with short singleton rows or a mismatched test-page width are not
+the accepted metric-boundary evidence. Corpus export 2 initially returned no PDF;
+its isolated retry succeeded and is the reviewed render.
+The final corrected example was copied without replacement into the owner's
+PageThaw-output folder. Its path/hash are in private `page-fidelity/delivery.json`;
+it is a normal paragraph DOCX with retained soft line breaks, not a new EXE release.
+
+Read-only routing used `routing_reviewer`, requested Sol/high, for independent
+code and visual review, and `routing_scout`, requested Luna/high, for the bounded
+option inventory. Native role requests were accepted; exact backend identity
+was not independently confirmed. No subagent writes. Astra was unavailable on
+this account and was not retried in this continuation. Lead remains sole writer.
+
 ## 1.2.1 spacing correction — published and verified
 
 2026-10-23: the owner's latest DOCX still overflowed after fixing fonts. Direct

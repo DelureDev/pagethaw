@@ -312,3 +312,22 @@ def test_cancel_rescan_invalidates_previous_scan(app, monkeypatch, tmp_path):
     monkeypatch.setattr(gui.messagebox, 'showinfo', lambda *args: messages.append(args))
     app.convert()
     assert messages[0][0] == app.t('Scan first')
+
+
+def test_retained_lines_are_optional_persisted_and_only_enabled_for_editable(app):
+    from pagethaw import preferences
+    app.mode.set('editable')
+    app.keep_lines.set(True)
+    app.mode_changed()
+    assert preferences.load()['keep_line_breaks'] is True
+    assert 'disabled' not in app.keep_lines_option.state()
+    app.switch_language()
+    assert app.keep_lines.get() is True
+    assert app.keep_lines_option.cget('text') == app.t('Keep PDF line breaks in normal paragraphs')
+    app.mode.set('layout')
+    app.mode_changed()
+    assert 'disabled' in app.keep_lines_option.state()
+    app.mode.set('editable')
+    app.keep_lines.set(False)
+    app.mode_changed()
+    assert preferences.load()['keep_line_breaks'] is False

@@ -55,6 +55,73 @@ def test_flowing_text_and_expanding_fields(tmp_path, face):
     assert any('ordinary editable text' in p.text for p in edited.paragraphs)
 
 
+@pytest.mark.parametrize('keep_lines', [False, True])
+def test_whitespace_only_source_row_does_not_break_margin_inference(tmp_path, face, keep_lines):
+    def draw(page):
+        for y, text in [(60, 'X'*70), (72, '   '), (84, 'continuation')]:
+            page.insert_text((30, y), text, fontname='fixture', fontsize=10)
+    info, mapping = source(tmp_path, face, draw)
+    target = tmp_path/'blank-row.docx'
+    convert_pdf(info, target, mapping, mode='editable', keep_line_breaks=keep_lines)
+    doc = Document(target)
+    text = '\n'.join(p.text for p in doc.paragraphs)
+    assert 'X'*70 in text and 'continuation' in text
+    if keep_lines:
+        assert any(p.text.endswith('\n') for p in doc.paragraphs if p.text.startswith('X'))
+
+
+def test_trailing_source_whitespace_does_not_add_empty_body_paragraph(tmp_path, face):
+    def draw(page):
+        page.insert_text((30,60), 'A last paragraph.', fontname='fixture', fontsize=10)
+        page.insert_text((30,72), '   ', fontname='fixture', fontsize=10)
+    info, mapping = source(tmp_path, face, draw)
+    target = tmp_path/'no-empty-tail.docx'
+    convert_pdf(info, target, mapping, mode='editable', keep_line_breaks=True)
+    assert Document(target).paragraphs[-1].text == 'A last paragraph.'
+
+
+def test_retained_lines_round_available_page_width_outward(tmp_path, face):
+    def draw(page):
+        page.insert_text((8.023,60), 'A full source row '*5, fontname='fixture', fontsize=10)
+    info, mapping = source(tmp_path, face, draw)
+    target = tmp_path/'margin.docx'
+    convert_pdf(info, target, mapping, mode='editable', keep_line_breaks=True)
+    with pymupdf.open(info.path) as pdf:
+        bounds = pdf[0].get_text('blocks')[0][:4]
+    sec = Document(target).sections[0]
+    assert sec.left_margin.pt <= bounds[0]
+    assert sec.page_width.pt-sec.right_margin.pt >= bounds[2]+.075
+
+
+def test_right_logo_shares_header_with_heading_and_subtitle(tmp_path, face):
+    bold = read_font(Path('C:/Windows/Fonts/arialbd.ttf'), installed=True)
+    path = tmp_path/'header.pdf'
+    with pymupdf.open() as pdf:
+        page = pdf.new_page(width=320, height=800)
+        page.insert_font(fontname='regular', fontfile=face.path)
+        page.insert_font(fontname='bold', fontfile=bold.path)
+        page.insert_text((20,45), 'Receipt heading', fontname='bold', fontsize=18)
+        page.insert_text((20,65), 'A subtitle', fontname='regular', fontsize=14)
+        page.draw_circle((276,47),25,color=(0,0,0),fill=(0,0,0))
+        page.insert_text((20,100), 'Ordinary body paragraph.', fontname='regular', fontsize=12)
+        pdf.save(path)
+    info = inspect_pdf(path)
+    mapping = {name:bold if 'Bold' in name else face for name in info.fonts}
+    target = tmp_path/'header.docx'
+    convert_pdf(info, target, mapping, mode='editable', keep_line_breaks=True)
+    doc = Document(target)
+    assert len(doc.tables) == 1
+    table = doc.tables[0]
+    assert 'Receipt heading' in table.cell(0,0).text and 'A subtitle' in table.cell(0,0).text
+    assert len(list(table.cell(0,1)._tc.iter(qn('w:drawing')))) == 1
+    assert table.columns[0].width.pt == pytest.approx(231,abs=.05)
+    assert table.columns[1].width.pt == pytest.approx(50,abs=.05)
+    assert any(p.text == 'Ordinary body paragraph.' for p in doc.paragraphs)
+    assert not list(doc.element.iter(qn('w:framePr')))
+    assert not list(doc.element.iter(qn('w:txbxContent')))
+    assert not list(doc.element.iter(qn('w:trHeight')))
+
+
 @pytest.mark.parametrize('boxed', [False, True])
 @pytest.mark.parametrize('order', ['row', 'column'])
 def test_columns_rejected_before_publication(tmp_path, face, boxed, order):
