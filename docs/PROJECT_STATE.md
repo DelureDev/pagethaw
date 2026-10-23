@@ -1,5 +1,45 @@
 # Project state
 
+## Six additional owner PDFs — test findings, 2026-10-23
+
+Fresh testing of six private two-page forms is **not a full batch PASS**. Product
+code and installed fonts/registry were not changed. Detailed file identities,
+screenshots, proofs and hashes stay in `.private/user-six-2026-10-23/summary.json`.
+
+**Failed:** the published 1.3.0 EXE accepts explicit mappings to stale registered
+font aliases whose files still exist. Native Word substitutes a visibly different
+font. Fresh GDI readback confirms those requested aliases resolve to another face;
+the original regular/bold families are active. Registry presence alone does not
+prove the selected face is usable. Existing original-family registry conflicts
+were not bypassed in the released EXE and no fonts were installed or removed.
+
+**Passed, diagnostic scope only:** live GDI CFF/OS2/hmtx/hhea/cmap tables equal the
+supplied original fonts, and used PDF glyphs match. The unchanged converter API,
+given those verified active faces, produces four documents in both editable modes.
+All pass content checks and remain two pages without positioned text or fixed-height
+rows. All 16 corrected-font Word pages were inspected. Three documents retain their
+source content page boundaries and are usable with small field/label differences;
+reviewed retained-line samples were copied to a new owner output subfolder containing
+only DOCX files. This does not clear the EXE's font-selection failure.
+
+**Failed:** the fourth document has an in-body footnote that interrupts a risk list;
+the first continuation bullet moves from source page 2 to below the note on Word
+page 1. A fifth form is rejected in both modes because an underscore-only line's
+bounding box overlaps the outer form border (about 0.91 pt). This needs a geometric
+rule treatment, not a broad relaxation for real text crossing borders.
+
+**Blocked:** the sixth needs a missing font for five list dashes. The owner explicitly
+declined substitution. The EXE correctly refuses conversion and creates no DOCX.
+All six originals are hash-unchanged. Other Word versions/printing and a new build
+were **not run**; this was a test request, not a new release.
+
+Next: validate active font identity, handle coincident underscore rules, reconstruct
+or safely reject footnotes, then repeat this corpus through a rebuilt EXE and affected
+regression checks. Do not claim the full batch or released font selection passed.
+Independent visual review used `routing_reviewer`, requested Sol/high; the native
+role request was accepted, backend identity not independently confirmed. Reviewer
+was read-only; the lead wrote private QA evidence and this handoff only.
+
 ## 1.3.0 shared editable fidelity — published and verified
 
 2026-10-23: [PageThaw 1.3.0](https://github.com/DelureDev/pagethaw/releases/tag/v1.3.0)
