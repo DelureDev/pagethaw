@@ -1,6 +1,6 @@
 # Project state
 
-## 1.3.2 — editable blank spacing and date rules (release candidate)
+## 1.3.2 — editable blank spacing and date rules (published)
 
 2026-10-26: the shared editable converter uses measured PDF field edges instead
 of adding font-sized padding to every label. Real whitespace remains outside
@@ -19,8 +19,16 @@ outputs match 1.3.1. Original PDF/DOCX files remain unchanged.
 **Passed:** final local EXE/ZIP build and relocation with EN/RU widget checks, clean
 preferences and no external Python on PATH. Frozen smoke verifies all four
 synthetic blank-rule edges against PDF coordinates, including the year field.
-**Pending:** hosted candidate, exact hosted binary readback and
-publication. Update this section after those gates; do not infer them from 1.3.1.
+**Passed:** hosted Windows tests `40291609662` and build/fresh-VM checks
+`40291626110`, from `f6b94734d52d35a87d988aac62dd6abc0d2d9bc6`. The exact hosted
+EXE/ZIP also pass local relocation. All 16 frozen modules equal tested source;
+12 synthetic frozen DOCX outputs equal source by every part. All 190 tests pass
+after integration into main. [1.3.2](https://github.com/DelureDev/pagethaw/releases/tag/v1.3.2)
+is published; downloaded public EXE/ZIP/checksums equal the tested hosted bytes.
+The verified EXE is in Downloads and the corrected three-page DOCX is in
+`Downloads/PageThaw-output/test-1.3.2`. Existing user files were preserved.
+The two reported field defects are resolved. Detailed release hashes and delivery
+checks are in `.private/review-2026-10-26-minifleb6/release-verification.json`.
 
 **Limits:** other corpus documents still have pre-existing paragraph/page-boundary
 differences; this is not universal pixel identity. The missing-font form remains

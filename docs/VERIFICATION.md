@@ -18,12 +18,24 @@
 - **Passed:** independent review; final local build and relocation of both formats,
   bundled runtime, EN/RU widgets and DOCX-only output. Frozen smoke checks both
   edges of all four synthetic blank rules against the original PDF.
-- **Pending:** hosted Windows/fresh-VM checks and public asset readback.
+- **Passed:** [hosted Windows tests](https://github.com/DelureDev/pagethaw/actions/runs/40291609662)
+  and [build/fresh Windows VM](https://github.com/DelureDev/pagethaw/actions/runs/40291626110),
+  source `f6b94734d52d35a87d988aac62dd6abc0d2d9bc6`. Exact hosted EXE/ZIP pass local
+  relocation; all 16 frozen modules and 12 synthetic DOCX outputs match tested
+  source. All 190 tests pass after integration into main.
+- **Passed:** published EXE, ZIP and checksum files downloaded again and compared
+  byte for byte with the tested hosted candidate. Verified EXE and corrected DOCX
+  delivered locally; original PDF and supplied DOCX remain hash-unchanged.
 - **Blocked:** the owner's missing-font form remains blocked without substitution.
   The separate installed-font alias issue is unchanged.
 - **Not run:** other Word versions, physical printing and universal pixel identity.
   No UI layout changed; EN/RU widget checks were run, new native UI screenshots were
   not taken. Private evidence is under `.private/review-2026-10-26-minifleb6`.
+
+Published [1.3.2](https://github.com/DelureDev/pagethaw/releases/tag/v1.3.2) assets:
+
+- EXE (46,336,398 bytes): `8cac3950ca0c762340520762f529787e8f78990af29e8f93f37e2d5cb3ad3db0`
+- ZIP (46,604,642 bytes): `27694a31591e866ef96884e7086c6f0916bc481ab0128ff36e77df11f781913f`
 
 ## 1.3.1 — footnotes and form border blanks
 
