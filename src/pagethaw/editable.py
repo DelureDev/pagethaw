@@ -32,6 +32,26 @@ def reject(detail):
     raise UnsupportedLayout('Editable mode: '+detail+' Use Preserve layout for this PDF.')
 
 
+def blank_ranges(text):
+    """Standalone blanks and the unfinished year following day/month blanks.
+
+    Numeric/letter identifiers stay literal. A year can touch a one-letter unit
+    abbreviation, e.g. 20____y. Return only underscores, preserving the prefix
+    and suffix as ordinary text with their original emphasis.
+    """
+    blanks = [match.span() for match in re.finditer(r'(?<!\w)_{3,}(?!\w)', text)]
+    years = []
+    for match in re.finditer(r'(?<!\w)\d{2}(_{3,})(?=\W|$|[^\W\d_]\.)', text):
+        preceding = [(a, b) for a, b in blanks if b <= match.start()]
+        if len(preceding) < 2:
+            continue
+        day, month = preceding[-2:]
+        separators = text[day[1]:month[0]]+text[month[1]:match.start()]
+        if not any(c.isalnum() or c == '_' for c in separators):
+            years.append(match.span(1))
+    return sorted(blanks+years)
+
+
 @dataclass
 class Line:
     spans: list
@@ -48,7 +68,7 @@ class Line:
 
     @property
     def field(self):
-        return bool(re.search(r'(?<!\w)_{3,}(?!\w)', self.text))
+        return bool(blank_ranges(self.text))
 
     @property
     def bold(self):
@@ -431,31 +451,35 @@ class Writer:
         # with several lines grows the row and moves following content naturally.
         chars = [(c, s) for s in line.spans for c in s['chars']]
         text = ''.join(c['c'] for c, _ in chars)
-        matches = list(re.finditer(r'(?<!\w)_{3,}(?!\w)', text))
+        matches = blank_ranges(text)
         parts, pos = [], 0
-        for match in matches:
-            if match.start() > pos:
-                parts.append((chars[pos:match.start()], False))
-            parts.append((chars[match.start():match.end()], True))
-            pos = match.end()
+        for start, end in matches:
+            if start > pos:
+                parts.append((chars[pos:start], False))
+            parts.append((chars[start:end], True))
+            pos = end
         if pos < len(chars):
             parts.append((chars[pos:], False))
-        parts = [(cs, blank) for cs, blank in parts if blank or ''.join(c['c'] for c, _ in cs).strip()]
-        natural = [max(2, cs[-1][0]['bbox'][2]-cs[0][0]['bbox'][0]) for cs, _ in parts]
-        total = sum(natural)
-        # Full-width source blanks should reach the same right margin. Short
-        # signatures remain short, leaving real layout space to the right.
-        available = min(width, max(total, line.bbox.width))
-        # Reserve a little extra width for label glyph metrics; blanks absorb the
-        # difference. Labels should not wrap because of PDF/Word rounding.
-        label_widths = [v+line.size*.8 if not blank else 0 for v, (_, blank) in zip(natural, parts)]
-        blank_total = sum(v for v, (_, blank) in zip(natural, parts) if blank)
-        blank_space = available-sum(label_widths)
-        if blank_space <= len(matches)*2:
+        # Keep source boundaries, including real whitespace between fields.
+        # Padding every label by a fraction of its font size moves later fields
+        # and consumes the blanks. Only a twip-rounding allowance is needed.
+        edges = [cs[0][0]['bbox'][0] for cs, _ in parts]+[chars[-1][0]['bbox'][2]]
+        for i in range(1, len(parts)):
+            if parts[i-1][1]:
+                edges[i] = parts[i-1][0][-1][0]['bbox'][2]
+        origin = edges[0]
+        edges = [x-edges[0] for x in edges]
+        for i in range(1, len(parts)):
+            if not parts[i-1][1] and parts[i][1]:
+                edges[i] += .15
+        edges[-1] += .15 if not parts[-1][1] else 0
+        scale = min(1, width/edges[-1])
+        rounded = [round(x*scale*20) for x in edges]
+        widths = [(b-a)/20 for a, b in zip(rounded, rounded[1:])]
+        if any(v < .5 for v in widths):
             reject('a form row has insufficient space for editable values.')
-        widths = [v/blank_total*blank_space if blank else label for v, label, (_, blank) in zip(natural, label_widths, parts)]
         table = table_at(parent, widths)
-        for cell, (cs, blank) in zip(table.rows[0].cells, parts):
+        for i, (cell, (cs, blank)) in enumerate(zip(table.rows[0].cells, parts)):
             para = self.paragraph(cell, line.size)
             self.text_metrics(para, [line])
             if blank:
@@ -465,6 +489,11 @@ class Writer:
                 cell_borders(cell, borders)
                 self.run(para, cs[0][1], ' ')
             else:
+                # A real PDF gap after a blank belongs before the next label,
+                # not under the blank's rule. Keep it as a paragraph inset.
+                gap = (cs[0][0]['bbox'][0]-origin)*scale-rounded[i]/20
+                if gap > .05:
+                    para.paragraph_format.left_indent = Pt(gap)
                 current, text = cs[0][1], ''
                 for char, span in cs:
                     if span is not current:
@@ -790,8 +819,8 @@ def build_document(pdf, mapping, dpi=144, cancel=None, keep_line_breaks=False):
                 last_bottom = data.y1
         flush_body()
         for line in lines:
-            for match in re.finditer(r'(?<!\w)_{3,}(?!\w)', line.text):
-                removed.update(match.group())
+            for start, end in blank_ranges(line.text):
+                removed.update(line.text[start:end])
     body_expected = writer.expected
     note_expected = {}
     if notes:
@@ -811,7 +840,7 @@ def build_document(pdf, mapping, dpi=144, cancel=None, keep_line_breaks=False):
     def signature(lines, anchors=None):
         result = []
         for line in lines:
-            blanks = {i for m in re.finditer(r'(?<!\w)_{3,}(?!\w)', line.text) for i in range(m.start(), m.end())}
+            blanks = {i for start, end in blank_ranges(line.text) for i in range(start, end)}
             index = 0
             for span in line.spans:
                 face = mapping[span['font']]

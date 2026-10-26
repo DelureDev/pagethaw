@@ -1,5 +1,39 @@
 # Project state
 
+## 1.3.2 — editable blank spacing and date rules (release candidate)
+
+2026-10-26: the shared editable converter uses measured PDF field edges instead
+of adding font-sized padding to every label. Real whitespace remains outside
+blank rules. Date-year underscores following day/month blanks use the same
+expanding ruled cells; numeric prefixes, unit suffixes and identifiers stay text.
+Body text, font sizes, normal paragraphs and both editable modes are preserved.
+
+**Passed:** 190 tests, source smoke, independent code review, all 50 newly rendered
+native Word comparison pages (12 changed documents per editable mode), and a
+native Word multiline-field edit/save/reopen test. The reported form stays three
+pages. The existing 35-file editable corpus retains its 14 accepted / 21 rejected
+split; with five additional supported inputs, each mode accepts 19 of 40. Seven
+accepted outputs per mode match 1.3.1 by every DOCX part. All 35 Preserve layout
+outputs match 1.3.1. Original PDF/DOCX files remain unchanged.
+
+**Passed:** final local EXE/ZIP build and relocation with EN/RU widget checks, clean
+preferences and no external Python on PATH. Frozen smoke verifies all four
+synthetic blank-rule edges against PDF coordinates, including the year field.
+**Pending:** hosted candidate, exact hosted binary readback and
+publication. Update this section after those gates; do not infer them from 1.3.1.
+
+**Limits:** other corpus documents still have pre-existing paragraph/page-boundary
+differences; this is not universal pixel identity. The missing-font form remains
+blocked without substitution, as requested. Installed font alias behavior is
+unchanged. Other Word versions and physical printing were not run. Private
+evidence: `.private/review-2026-10-26-minifleb6/final-audit.json` and adjacent files.
+
+Independent read-only code/natural-mode visual review requested routing_reviewer
+gpt-6.1-sol/high, which was unavailable at capacity. The accepted fallback request
+was gpt-6-sol/high; backend identity was not independently confirmed. The lead was
+the sole writer. Review prompted stronger frozen field-edge coverage; no unresolved
+conversion defect remains in the reviewed diff.
+
 ## 1.3.1 — editable footnotes and touching blank lines (published)
 
 2026-10-23: [1.3.1](https://github.com/DelureDev/pagethaw/releases/tag/v1.3.1)

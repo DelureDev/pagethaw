@@ -3,6 +3,7 @@ from pathlib import Path
 import json
 import sys
 import os
+import re
 import pymupdf
 
 from .engine import inspect_pdf, convert_batch
@@ -106,6 +107,36 @@ def run(folder, compare=False):
     assert continuation._p.getprevious().xpath('.//w:br[@w:type="page"]')
     assert not list(notes_doc.element.iter(qn('w:txbxContent')))
     assert not list(notes_doc.element.iter(qn('w:framePr')))
+    fields_source = folder/'synthetic-fields.pdf'
+    with pymupdf.open() as pdf:
+        page = pdf.new_page()
+        page.insert_font(fontname='testfont', fontfile=face.path)
+        row = 'Name: __________ Date «____» ______ 20____y.'
+        page.insert_text((30, 60), row, fontname='testfont', fontsize=10)
+        page.insert_text((30, 90), 'Ordinary text: account_id 20____.', fontname='testfont', fontsize=10)
+        pdf.save(fields_source)
+    fields_info = inspect_pdf(fields_source)
+    fields_records = convert_batch([fields_info], folder/'fields', {n: face for n in fields_info.fonts}, mode='editable')
+    assert fields_records[0].get('content_check') == 'passed' and fields_records[0]['fields'] == 4, fields_records
+    fields_doc = Document(folder/'fields'/fields_records[0]['output'])
+    field_table = fields_doc.tables[0]
+    with pymupdf.open(fields_source) as pdf:
+        raw_line = pdf[0].get_text('rawdict')['blocks'][0]['lines'][0]
+        chars = [c for span in raw_line['spans'] for c in span['chars']]
+    expected_edges = [(chars[m.start()]['bbox'][0]-30, chars[m.end()-1]['bbox'][2]-30)
+                      for m in re.finditer(r'_{3,}', row)]
+    actual_edges, edge = [], 0
+    for column, cell in zip(field_table.columns, field_table.rows[0].cells):
+        if cell._tc.xpath('./w:tcPr/w:tcBorders/w:bottom[@w:val="single"]'):
+            actual_edges.append((edge, edge+column.width.pt))
+        edge += column.width.pt
+    assert len(actual_edges) == len(expected_edges) == 4
+    assert all(abs(a-e) <= .2 for actual, expected in zip(actual_edges, expected_edges)
+               for a, e in zip(actual, expected)), (actual_edges, expected_edges)
+    assert field_table.rows[0].cells[-2]._tc.xpath('./w:tcPr/w:tcBorders/w:bottom[@w:val="single"]')
+    assert field_table.rows[0].cells[-1].text == 'y.'
+    assert not list(fields_doc.element.iter(qn('w:trHeight')))
+    assert 'Ordinary text: account_id 20____.' in '\n'.join(p.text for p in fields_doc.paragraphs)
     comparison = 'not run'
     if compare:
         from .word_review import review_batch
@@ -157,5 +188,6 @@ def run(folder, compare=False):
         'frozen': bool(getattr(sys, 'frozen', False)), 'bundled_runtime': bundled, 'gui': 'passed',
         'repeat_conversion': 'passed', 'output_only_docx': 'passed', 'editable_mode': 'passed',
         'font_embedding': 'passed', 'ruled_tables': 'passed', 'retained_lines': 'passed',
-        'native_footnotes': 'passed', 'touching_blank_border': 'passed', 'comparison': comparison}, indent=2), encoding='utf-8')
+        'native_footnotes': 'passed', 'touching_blank_border': 'passed', 'field_geometry': 'passed',
+        'comparison': comparison}, indent=2), encoding='utf-8')
     return records

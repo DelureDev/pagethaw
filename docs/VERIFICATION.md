@@ -1,5 +1,30 @@
 # Release verification
 
+## 1.3.2 — field spacing and aligned date rules
+
+- **Passed:** 190 tests and source smoke. Coverage includes measured field edges,
+  whitespace gaps, date suffixes, literal identifiers, content/style preservation,
+  both editable modes and growing fields without positioned text or fixed heights.
+- **Passed:** 50 native Word comparison pages across 12 changed real documents in
+  each editable mode. No new label wrapping, missing captions/text, clipping or
+  page-count changes were found. The reported three-page form retains its source
+  content boundaries. Existing pagination differences in other forms remain.
+- **Passed:** multiline field editing in actual Word, save and reopen. All edited
+  text survives, the row expands and following text does not overlap.
+- **Passed:** existing corpus acceptance unchanged (14 accepted / 21 rejected);
+  five additional supported inputs produce 19 accepted documents per mode. Seven
+  outputs per mode are unchanged by every DOCX part. All 35 Preserve layout outputs
+  equal 1.3.1. Input hashes are unchanged. Private fonts/documents are not distributed.
+- **Passed:** independent review; final local build and relocation of both formats,
+  bundled runtime, EN/RU widgets and DOCX-only output. Frozen smoke checks both
+  edges of all four synthetic blank rules against the original PDF.
+- **Pending:** hosted Windows/fresh-VM checks and public asset readback.
+- **Blocked:** the owner's missing-font form remains blocked without substitution.
+  The separate installed-font alias issue is unchanged.
+- **Not run:** other Word versions, physical printing and universal pixel identity.
+  No UI layout changed; EN/RU widget checks were run, new native UI screenshots were
+  not taken. Private evidence is under `.private/review-2026-10-26-minifleb6`.
+
 ## 1.3.1 — footnotes and form border blanks
 
 - **Passed:** 175 tests, including native note relationships, custom reference
