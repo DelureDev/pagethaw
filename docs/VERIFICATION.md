@@ -1,5 +1,21 @@
 # Release verification
 
+## 1.3.4 — form borders and rectangular highlights (candidate)
+
+- **Passed:** 204 tests; character-level/multiline highlight conservation,
+  source preservation, ordinary editable paragraphs, custom blend/appearance
+  rejection, continued open borders and source line thickness/color.
+- **Passed:** source smoke with new highlight/border assertions; native Word
+  multiline table edit and highlighted-text edit, each saved and reopened.
+- **Passed:** independent code review and all ten native Word comparison pages
+  across both supplied forms and both editable modes. Three/two pages retained.
+- **Passed:** previous 40-file corpus per mode retains 19 accepted / 21 rejected;
+  twelve accepted files change only border style XML and seven are identical.
+- **Pending:** package/relocation, hosted VM, integrated tests and release readback.
+- **Limits:** only proven plain rectangular highlights; other visual effects stay
+  guarded. Fonts are not installed/embedded by this change. Wrapping may differ;
+  no claim of pixel identity or other Word-version/physical-print verification.
+
 ## 1.3.3 — inline squares and continued bordered prose
 
 - **Passed:** 196 tests, including checkbox provenance/conservation, both editable

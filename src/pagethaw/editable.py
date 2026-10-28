@@ -20,6 +20,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Pt, RGBColor
 from .inline_forms import attach_square, continuation_borders
+from .highlights import prepared_pdf, apply_highlights
 from .ruled_tables import find_grids, partition
 from .text_spacing import TextSpacing, source_tracking
 from .footnotes import find_notes, create_part, add_note, read_part
@@ -245,7 +246,7 @@ def cell_borders(cell, borders):
                              'w:cellIns', 'w:cellDel', 'w:cellMerge', 'w:tcPrChange')
 
 
-def table_at(parent, widths, border=False):
+def table_at(parent, widths, border=False, border_style=(6, '000000')):
     if hasattr(parent, 'sections'):
         table = parent.add_table(rows=1, cols=len(widths))
     else:
@@ -262,7 +263,8 @@ def table_at(parent, widths, border=False):
     pr.append(element('tblInd', w=0, type='dxa'))
     borders = element('tblBorders')
     for edge in ('top', 'left', 'bottom', 'right', 'insideH', 'insideV'):
-        borders.append(element(edge, val='single' if border and edge[:6] != 'inside' else 'nil', sz=6, color='000000'))
+        borders.append(element(edge, val='single' if border and edge[:6] != 'inside' else 'nil',
+                               sz=border_style[0], color=border_style[1]))
     pr.append(borders)
     for col, cell, width in zip(table.columns, table.rows[0].cells, widths):
         col.width = cell.width = Pt(width)
@@ -290,6 +292,17 @@ def split_continuation_rows(table):
         if child.tag != qn('w:p'):
             cell.add_paragraph()
             table_separator(cell)
+    # Table-wide top/bottom borders repeat at every Word page boundary. Put
+    # those edges on the actual first/last cells so continuation pages stay open.
+    borders = table._tbl.tblPr.find(qn('w:tblBorders'))
+    for edge, cell in [('top', table.cell(0, 0)), ('bottom', table.cell(len(table.rows)-1, 0))]:
+        source = borders.find(qn('w:'+edge))
+        own = cell._tc.get_or_add_tcPr().find(qn('w:tcBorders'))
+        if own is None:
+            own = element('tcBorders')
+            cell_borders(cell, own)
+        own.append(element(edge, val='single', sz=source.get(qn('w:sz')), color=source.get(qn('w:color'))))
+        source.set(qn('w:val'), 'nil')
 
 
 def table_separator(parent):
@@ -363,6 +376,8 @@ class Writer:
         run.underline = bool(span.get('underline'))
         run.font.size = Pt(span['size'])
         run.font.color.rgb = RGBColor.from_string(f"{span['color']:06X}")
+        if span.get('highlight_fill'):
+            run._r.get_or_add_rPr().append(element('shd', val='clear', color='auto', fill=span['highlight_fill']))
         run._r.get_or_add_rPr().append(element('kern', val=1))
         if id(span) in self.note_rises:
             run._r.get_or_add_rPr().append(element('position', val=round(self.note_rises[id(span)]*2)))
@@ -697,13 +712,24 @@ class Writer:
 
 
 def build_document(pdf, mapping, dpi=144, cancel=None, keep_line_breaks=False):
+    with prepared_pdf(pdf, reject) as (clean, highlights):
+        return _build_document(clean, mapping, dpi, cancel, keep_line_breaks, highlights)
+
+
+def _build_document(pdf, mapping, dpi, cancel, keep_line_breaks, highlights):
     pages = []
     continuations = continuation_borders(pdf)
     continuation_rects = {(n, tuple(pdf[n].get_drawings()[i]["rect"])): value for (n,i),value in continuations.items()}
+    border_styles = {(p.number, tuple(d['rect'])):
+                     (max(2, min(96, round(d['width']*8))), ''.join(f'{round(c*255):02X}' for c in d['color']))
+                     for p in pdf for d in p.get_drawings()
+                     if d['type'] == 's' and d.get('color') is not None and len(d['color']) == 3}
     note_plans, notes = [], []
     for page in pdf:
         cancelled(cancel)
         lines = lines_on(page)
+        if highlights.get(page.number):
+            apply_highlights(lines, highlights[page.number], reject)
         boxes, rules, graphics, grids = graphics_on(page, lines, continuations)
         plan = find_notes(lines, rules, page.rect.height, reject)
         note_plans.append(plan)
@@ -842,7 +868,8 @@ def build_document(pdf, mapping, dpi=144, cancel=None, keep_line_breaks=False):
                 if continuation and continuation[0] == 'end':
                     table = continuing_tables.pop(continuation[1])
                 else:
-                    table = table_at(doc, [box.width if continuation else width], border=True)
+                    table = table_at(doc, [box.width if continuation else width], border=True,
+                                     border_style=border_styles.get((page.number, tuple(box)), (6, '000000')))
                     if continuation:
                         table._tbl.tblPr.find(qn('w:tblInd')).set(qn('w:w'), str(round((box.x0-left)*20)))
                     if continuation:

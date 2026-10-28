@@ -23,7 +23,7 @@ def fixture(path, mismatch=False, marked=False, field=True):
             if marked:p.draw_line(square.tl,square.br)
             right = 470 if not mismatch or n == 0 else 460
             points = [(20,490),(20,40),(right,40),(right,490)] if n == 0 else [(20,10),(20,100),(right,100),(right,10)]
-            p.draw_polyline(points,closePath=False)
+            p.draw_polyline(points,closePath=False,width=1.5,color=(.2,.4,.6))
         pdf.save(path)
     return read_font(font,installed=True)
 
@@ -38,6 +38,15 @@ def test_inline_squares_and_paired_continuation_are_editable(tmp_path,keep,field
     doc=Document(out)
     assert len(doc.tables)==1
     assert len(doc.tables[0].rows)>1
+    table = doc.tables[0]
+    borders = table._tbl.tblPr.find(qn('w:tblBorders'))
+    for edge in ('top', 'bottom'):
+        assert borders.find(qn('w:'+edge)).get(qn('w:val')) == 'nil'
+    for edge in ('left', 'right'):
+        rule = borders.find(qn('w:'+edge))
+        assert rule.get(qn('w:sz')) == '12' and rule.get(qn('w:color')) == '336699'
+    assert table.cell(0,0)._tc.tcPr.find(qn('w:tcBorders')).find(qn('w:top')) is not None
+    assert table.cell(len(table.rows)-1,0)._tc.tcPr.find(qn('w:tcBorders')).find(qn('w:bottom')) is not None
     assert len(doc.element.xpath('.//wp:inline'))==2
     assert not doc.element.xpath('.//wp:anchor')
     assert not list(doc.element.iter(qn('w:txbxContent')))

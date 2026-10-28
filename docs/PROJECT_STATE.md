@@ -1,5 +1,38 @@
 # Project state
 
+## 1.3.4 — form borders and rectangular text highlights (candidate)
+
+2026-10-28: preserve source border thickness/color in bordered prose forms. A
+continued table uses top/bottom borders only on its actual first/last cells,
+leaving page boundaries open while retaining ordinary editable paragraphs.
+Plain rectangular PDF Highlight annotations become character-level Word shading.
+Annotation quads, isolated appearances, nested blend resources, opacity and actual
+compositing are verified before removal from an in-memory copy. Arbitrary graphic
+text overlaps, partial glyphs and unsupported custom highlight effects stay blocked.
+The original PDF and the caller's in-memory annotations/trailer are unchanged.
+
+**Passed:** 204 tests plus the final source-preservation focused checks; source
+portable smoke includes highlights and border styles. Independent code review and
+all ten native Word pages of the two reported forms in both editable modes passed.
+The forms remain three and two pages, respectively. Text/order/emphasis pass;
+no frames, positioned text or fixed row heights. Native Word edit/save/reopen
+checks passed for expanding table text and insertion inside highlighted text.
+**Passed:** prior 40-file corpus in each mode retains 19 accepted / 21 rejected.
+Twelve accepted files change only border size/color XML; seven match every part.
+No private PDF/font is public. Evidence: `.private/borders-relatox-2026-10-28`.
+
+**Pending:** portable build/relocation, hosted fresh-VM gates, integrated tests,
+public release readback and delivery. Do not infer these from 1.3.3 results.
+**Limits:** custom/rounded/skewed/overlapping highlights remain unsupported;
+shading preserves the plain visible highlight, not PDF annotation comments.
+Matching fonts are still required; installed font conflicts are unchanged.
+Some wrapping/page positions can differ. Other Word versions/printing not run.
+
+Read-only review: requested routing_reviewer gpt-6.1-sol/high; runtime accepted
+role selection, backend identity not independently confirmed. Lead sole writer.
+The reviewer found a custom appearance blend mismatch, fixed and retested before
+PASS; final adversarial checks also reject unused or nested custom blend states.
+
 ## 1.3.3 — inline squares and continued bordered prose (published)
 
 2026-10-28: the owner's new three-page form adds empty square outlines inside

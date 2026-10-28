@@ -148,7 +148,7 @@ def run(folder, compare=False):
             page.draw_rect(pymupdf.Rect(x,58,x+7,65))
             points = ([(20,490),(20,40),(470,40),(470,490)] if number == 0
                       else [(20,10),(20,100),(470,100),(470,10)])
-            page.draw_polyline(points, closePath=False)
+            page.draw_polyline(points, closePath=False, width=1.5)
         pdf.save(continued_source)
     continued_info = inspect_pdf(continued_source)
     continued_records = convert_batch([continued_info], folder/'continued',
@@ -159,6 +159,33 @@ def run(folder, compare=False):
     assert len(continued_doc.element.xpath('.//wp:inline')) == 2
     assert not continued_doc.element.xpath('.//wp:anchor')
     assert not list(continued_doc.element.iter(qn('w:trHeight')))
+    continued_borders = continued_doc.tables[0]._tbl.tblPr.find(qn('w:tblBorders'))
+    assert continued_borders.find(qn('w:top')).get(qn('w:val')) == 'nil'
+    assert continued_borders.find(qn('w:bottom')).get(qn('w:val')) == 'nil'
+    assert continued_borders.find(qn('w:left')).get(qn('w:sz')) == '12'
+    highlight_source = folder/'synthetic-highlight.pdf'
+    with pymupdf.open() as pdf:
+        page = pdf.new_page()
+        page.insert_font(fontname='testfont', fontfile=face.path)
+        page.insert_text((30,60), 'Highlighted editable text', fontname='testfont', fontsize=10)
+        rect = page.search_for('Highlighted')[0]
+        annot = page.add_highlight_annot(rect)
+        annot.set_colors(stroke=(1,.5,0))
+        annot.set_opacity(.4)
+        annot.set_blendmode('Multiply')
+        annot.update()
+        xref = int(pdf.xref_get_key(annot.xref, 'AP/N')[1].split()[0])
+        pdf.xref_set_key(xref, 'Resources', '<< /ExtGState << /H << /ca .4 /BM /Multiply >> >> >>')
+        pdf.update_stream(xref, f'q /H gs 1 .5 0 rg {rect.x0} {page.rect.height-rect.y1} {rect.width} {rect.height} re f Q'.encode())
+        pdf.save(highlight_source)
+    highlight_info = inspect_pdf(highlight_source)
+    highlight_records = convert_batch([highlight_info], folder/'highlight',
+                                     {n: face for n in highlight_info.fonts}, mode='editable')
+    assert highlight_records[0].get('content_check') == 'passed', highlight_records
+    highlight_doc = Document(folder/'highlight'/highlight_records[0]['output'])
+    shaded_runs = highlight_doc.element.xpath('.//w:r[w:rPr/w:shd[@w:fill="FFCC99"]]')
+    assert ''.join(t.text for r in shaded_runs for t in r.iter(qn('w:t'))) == 'Highlighted'
+    assert not list(highlight_doc.element.iter(qn('w:txbxContent')))
     comparison = 'not run'
     if compare:
         from .word_review import review_batch
@@ -212,5 +239,6 @@ def run(folder, compare=False):
         'font_embedding': 'passed', 'ruled_tables': 'passed', 'retained_lines': 'passed',
         'native_footnotes': 'passed', 'touching_blank_border': 'passed', 'field_geometry': 'passed',
         'inline_squares_and_continuations': 'passed',
+        'highlights_and_border_styles': 'passed',
         'comparison': comparison}, indent=2), encoding='utf-8')
     return records
