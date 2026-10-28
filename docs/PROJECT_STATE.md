@@ -1,6 +1,6 @@
 # Project state
 
-## 1.3.3 — inline squares and continued bordered prose (candidate)
+## 1.3.3 — inline squares and continued bordered prose (published)
 
 2026-10-28: the owner's new three-page form adds empty square outlines inside
 text and a bordered prose section spanning two PDF pages. The shared editable
@@ -20,11 +20,21 @@ from the first page to the second. No pixel-identity claim. Original file unchan
 **Passed:** local portable build and relocation of both formats, EN/RU widgets,
 new synthetic inline-square/continuation smoke, 17 frozen modules equal source
 and 14 synthetic DOCX outputs equal source by every part.
-**Pending:** hosted clean-VM checks, publication/readback.
+**Passed:** hosted Windows checks `40684007882` and build/fresh-VM checks
+`40684008317`, source `86637d4b9d954065f36c2d8f57d61bb77e76a352`. All 196 tests
+passed again after integration into main. [1.3.3](https://github.com/DelureDev/pagethaw/releases/tag/v1.3.3)
+is published using the tested local build. Public EXE/ZIP/checksums were downloaded
+and equal the tested local bytes. Hosted candidate download stalled and was stopped;
+local relocation of that separate hosted build was **not run**. The published local
+build passed relocation and source equivalence before upload. Verified EXE is in
+Downloads; the reviewed DOCX is in `Downloads/PageThaw-output/test-1.3.3`.
 The earlier installed-font alias conflict remains separate: real-file QA used
 fresh GDI/glyph verification of the owner's active original font faces, not a
 bypass in the app. No font installation, registry change or substitution occurred.
 Private evidence: `.private/rrs-2026-10-28`. No private documents/fonts are public.
+Exact asset hashes and readback evidence: `release-verification.json` in that folder.
+The new-layout adaptation is complete; the existing font-registration issue remains
+separate and was disclosed to the owner.
 
 Independent read-only review requested `routing_reviewer` (gpt-6.1-sol/high),
 accepted by the runtime; backend identity not independently confirmed. No fallback.

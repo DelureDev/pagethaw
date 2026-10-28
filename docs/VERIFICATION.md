@@ -15,11 +15,23 @@
   all 19 accepted outputs per mode equal 1.3.2 by every DOCX part.
 - **Passed:** local EXE/ZIP build and relocation with bundled runtime and EN/RU
   widget checks; 17 frozen modules and 14 synthetic DOCX files match tested source.
-- **Pending:** hosted checks and published asset readback.
+- **Passed:** [hosted Windows checks](https://github.com/DelureDev/pagethaw/actions/runs/40684007882)
+  and [build/fresh Windows VM](https://github.com/DelureDev/pagethaw/actions/runs/40684008317),
+  source `86637d4b9d954065f36c2d8f57d61bb77e76a352`. All 196 tests passed after
+  integration into main.
+- **Passed:** published local EXE, ZIP and checksum files downloaded again and
+  compared byte for byte with the tested local assets. The separate hosted candidate
+  download stalled and was stopped; its local relocation was **not run**. The published
+  local binary passed the documented relocation/source-equivalence checks.
 - **Limits:** empty squares remain inline graphics, not interactive checkboxes.
   Some wrapping and border rendering differs. The existing installed-font alias
   conflict is unchanged; real-file rendering used GDI-verified original families.
   No fonts were installed or substituted. Other Word versions/printing not run.
+
+Published [1.3.3](https://github.com/DelureDev/pagethaw/releases/tag/v1.3.3) assets:
+
+- EXE (46,769,202 bytes): `c5111b11f7ff3ae5d32137fb7e124497ed118ef8a76ae7876bdda19e08e4cafd`
+- ZIP (47,049,977 bytes): `ec6c9a803c4c234f8ae6a2ff8e4c1c244000832bed1527b38161dee4cb14582a`
 
 ## 1.3.2 — field spacing and aligned date rules
 
