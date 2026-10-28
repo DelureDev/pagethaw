@@ -19,6 +19,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Pt, RGBColor
+from .inline_forms import attach_square, continuation_borders
 from .ruled_tables import find_grids, partition
 from .text_spacing import TextSpacing, source_tracking
 from .footnotes import find_notes, create_part, add_note, read_part
@@ -126,7 +127,7 @@ def blank_touches_border(box, line):
             (max(baselines) <= box.y0 or min(baselines) >= box.y1))
 
 
-def graphics_on(page, lines):
+def graphics_on(page, lines, continuations=None):
     """Separate simple outer boxes/rules from standalone graphics such as logos."""
     boxes, rules, rects = [], [], []
     drawings = page.get_drawings()
@@ -134,6 +135,11 @@ def graphics_on(page, lines):
     handled = {index for g in grids for index in g.drawings}
     for index, draw in enumerate(drawings):
         if index in handled:
+            continue
+        if attach_square(page, draw, lines):
+            continue
+        if continuations and (page.number, index) in continuations:
+            boxes.append(pymupdf.Rect(draw['rect']))
             continue
         rect = pymupdf.Rect(draw['rect'])
         items = draw['items']
@@ -264,6 +270,28 @@ def table_at(parent, widths, border=False):
     return table
 
 
+def split_continuation_rows(table):
+    # Word otherwise moves a whole tall single-row form to the next page when
+    # that row fits there. Paragraph rows keep a single flowing bordered table.
+    first = table.cell(0, 0)
+    children = [n for n in first._tc if n.tag != qn('w:tcPr')]
+    for child in children:
+        first._tc.remove(child)
+    for i, child in enumerate(children):
+        cell = first if i == 0 else table.add_row().cells[0]
+        for old in list(cell._tc):
+            if old.tag != qn('w:tcPr'):
+                cell._tc.remove(old)
+        cell_margins(cell, 0)
+        margins = cell._tc.get_or_add_tcPr().find(qn('w:tcMar'))
+        for edge in ('left', 'right'):
+            margins.find(qn('w:'+edge)).set(qn('w:w'), '50')
+        cell._tc.append(child)
+        if child.tag != qn('w:p'):
+            cell.add_paragraph()
+            table_separator(cell)
+
+
 def table_separator(parent):
     # Adjacent tables in Word merge into a single grid unless a paragraph
     # separates them; that changes the widths of unrelated form fields.
@@ -287,6 +315,7 @@ class Writer:
         self.note_refs = {}
         self.note_rises = {}
         self.emitted_refs = set()
+        self.emitted_squares = set()
 
     def minimum_spacing(self, lines):
         # Joining unequal-size source rows changes which font sets the first
@@ -317,7 +346,15 @@ class Writer:
 
     def run(self, para, span, text):
         face = self.mapping[span['font']]
-        run = para.add_run(text)
+        run = para.add_run('' if span.get('inline_square') else text)
+        if span.get('inline_square'):
+            if id(span) in self.emitted_squares:
+                reject('an inline square was emitted more than once.')
+            self.emitted_squares.add(id(span))
+            data, width, height = span['inline_square']
+            para.paragraph_format.line_spacing = Pt(max(height+span['size']*.3, span['size']*1.2))
+            para.paragraph_format.line_spacing_rule = WD_LINE_SPACING.AT_LEAST
+            run.add_picture(io.BytesIO(data), width=Pt(width), height=Pt(height))
         run.font.name = face.family
         fonts = run._r.get_or_add_rPr().rFonts
         for attr in ('ascii', 'hAnsi', 'eastAsia', 'cs'):
@@ -417,11 +454,11 @@ class Writer:
                     text = text.lstrip()
                 if si == len(line.spans)-1:
                     text = text.rstrip()
-                if (previous_x is not None and span['bbox'][0]-previous_x > span['size']*.65
+                if (not span.get('inline_square') and previous_x is not None and span['bbox'][0]-previous_x > span['size']*.65
                         and text and not text[0].isspace() and not previous_text.endswith(' ')):
                     self.run(para, span, ' ')
                 tracking = (source_tracking(span, self.mapping[span['font']])
-                            if self.keep_line_breaks and id(span) not in self.note_rises else None)
+                            if self.keep_line_breaks and id(span) not in self.note_rises and not span.get('inline_square') else None)
                 if tracking is not None:
                     raw = ''.join(c['c'] for c in span['chars'])
                     start = len(raw)-len(raw.lstrip()) if si == 0 else 0
@@ -661,11 +698,13 @@ class Writer:
 
 def build_document(pdf, mapping, dpi=144, cancel=None, keep_line_breaks=False):
     pages = []
+    continuations = continuation_borders(pdf)
+    continuation_rects = {(n, tuple(pdf[n].get_drawings()[i]["rect"])): value for (n,i),value in continuations.items()}
     note_plans, notes = [], []
     for page in pdf:
         cancelled(cancel)
         lines = lines_on(page)
-        boxes, rules, graphics, grids = graphics_on(page, lines)
+        boxes, rules, graphics, grids = graphics_on(page, lines, continuations)
         plan = find_notes(lines, rules, page.rect.height, reject)
         note_plans.append(plan)
         for note in plan[0]:
@@ -706,6 +745,7 @@ def build_document(pdf, mapping, dpi=144, cancel=None, keep_line_breaks=False):
             node.getparent().remove(node)
     source_chars = Counter(c['c'] for lines, *_ in pages for l in lines for s in l.spans for c in s['chars'] if not c['c'].isspace())
     removed = Counter()
+    continuing_tables = {}
     for page, (lines, boxes, rules, graphics, tables, reading) in zip(pdf, pages):
         # Continue ordinary body pages. A footer note is tied to its source-page
         # anchor: retain the following boundary so the next page's body does not
@@ -798,8 +838,18 @@ def build_document(pdf, mapping, dpi=144, cancel=None, keep_line_breaks=False):
                 box, inner = data
                 if doc.paragraphs:
                     doc.paragraphs[-1].paragraph_format.space_after = Pt(3)
-                table = table_at(doc, [width], border=True)
-                writer.flow(table.cell(0, 0), inner, width-5, box.y0, left=box.x0+2.5)
+                continuation = continuation_rects.get((page.number, tuple(box)))
+                if continuation and continuation[0] == 'end':
+                    table = continuing_tables.pop(continuation[1])
+                else:
+                    table = table_at(doc, [box.width if continuation else width], border=True)
+                    if continuation:
+                        table._tbl.tblPr.find(qn('w:tblInd')).set(qn('w:w'), str(round((box.x0-left)*20)))
+                    if continuation:
+                        continuing_tables[continuation[1]] = table
+                writer.flow(table.cell(0, 0), inner, (box.width if continuation else width)-5, box.y0, left=box.x0+2.5)
+                if continuation and continuation[0] == 'end':
+                    split_continuation_rows(table)
                 table_separator(doc)
                 last_bottom = box.y1
             elif kind == 'image':
@@ -821,6 +871,11 @@ def build_document(pdf, mapping, dpi=144, cancel=None, keep_line_breaks=False):
         for line in lines:
             for start, end in blank_ranges(line.text):
                 removed.update(line.text[start:end])
+    if continuing_tables:
+        reject('a continued form has no matching end.')
+    expected_squares = {id(s) for lines, *_ in pages for l in lines for s in l.spans if s.get('inline_square')}
+    if writer.emitted_squares != expected_squares:
+        reject('inline square conservation failed.')
     body_expected = writer.expected
     note_expected = {}
     if notes:

@@ -1,5 +1,26 @@
 # Release verification
 
+## 1.3.3 — inline squares and continued bordered prose
+
+- **Passed:** 196 tests, including checkbox provenance/conservation, both editable
+  modes, ordinary paragraphs and field rows, mismatched continuation borders and
+  rejection of marked squares. Source smoke exercises two inline squares and one
+  continued table without positioned text or fixed row heights.
+- **Passed:** all six new native Word comparison pages independently reviewed.
+  Both modes produce three pages, 26 fields, four checkbox images and the logo.
+  Text/order/emphasis checks pass; no visible clipping/overlap. Source is unchanged.
+- **Passed:** actual Word multiline insertion, save/reopen, retained inline images,
+  complete test text and no overlap with following content.
+- **Passed:** existing 40-file corpus in both modes keeps acceptance unchanged;
+  all 19 accepted outputs per mode equal 1.3.2 by every DOCX part.
+- **Passed:** local EXE/ZIP build and relocation with bundled runtime and EN/RU
+  widget checks; 17 frozen modules and 14 synthetic DOCX files match tested source.
+- **Pending:** hosted checks and published asset readback.
+- **Limits:** empty squares remain inline graphics, not interactive checkboxes.
+  Some wrapping and border rendering differs. The existing installed-font alias
+  conflict is unchanged; real-file rendering used GDI-verified original families.
+  No fonts were installed or substituted. Other Word versions/printing not run.
+
 ## 1.3.2 — field spacing and aligned date rules
 
 - **Passed:** 190 tests and source smoke. Coverage includes measured field edges,

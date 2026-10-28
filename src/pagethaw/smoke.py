@@ -137,6 +137,28 @@ def run(folder, compare=False):
     assert field_table.rows[0].cells[-1].text == 'y.'
     assert not list(fields_doc.element.iter(qn('w:trHeight')))
     assert 'Ordinary text: account_id 20____.' in '\n'.join(p.text for p in fields_doc.paragraphs)
+    continued_source = folder/'synthetic-continued.pdf'
+    with pymupdf.open() as pdf:
+        for number in range(2):
+            page = pdf.new_page(width=500, height=500)
+            page.insert_font(fontname='testfont', fontfile=face.path)
+            page.insert_text((30,65), 'Yes        / No        agree: __________', fontname='testfont', fontsize=10)
+            raw = page.get_text('rawdict')['blocks'][0]['lines'][0]['spans'][0]['chars']
+            x = raw[4]['bbox'][0]
+            page.draw_rect(pymupdf.Rect(x,58,x+7,65))
+            points = ([(20,490),(20,40),(470,40),(470,490)] if number == 0
+                      else [(20,10),(20,100),(470,100),(470,10)])
+            page.draw_polyline(points, closePath=False)
+        pdf.save(continued_source)
+    continued_info = inspect_pdf(continued_source)
+    continued_records = convert_batch([continued_info], folder/'continued',
+                                      {n: face for n in continued_info.fonts}, mode='editable')
+    assert continued_records[0].get('content_check') == 'passed', continued_records
+    continued_doc = Document(folder/'continued'/continued_records[0]['output'])
+    assert len(continued_doc.tables) == 1 and len(continued_doc.tables[0].rows) > 1
+    assert len(continued_doc.element.xpath('.//wp:inline')) == 2
+    assert not continued_doc.element.xpath('.//wp:anchor')
+    assert not list(continued_doc.element.iter(qn('w:trHeight')))
     comparison = 'not run'
     if compare:
         from .word_review import review_batch
@@ -189,5 +211,6 @@ def run(folder, compare=False):
         'repeat_conversion': 'passed', 'output_only_docx': 'passed', 'editable_mode': 'passed',
         'font_embedding': 'passed', 'ruled_tables': 'passed', 'retained_lines': 'passed',
         'native_footnotes': 'passed', 'touching_blank_border': 'passed', 'field_geometry': 'passed',
+        'inline_squares_and_continuations': 'passed',
         'comparison': comparison}, indent=2), encoding='utf-8')
     return records

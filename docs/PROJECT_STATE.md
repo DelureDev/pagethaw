@@ -1,5 +1,35 @@
 # Project state
 
+## 1.3.3 — inline squares and continued bordered prose (candidate)
+
+2026-10-28: the owner's new three-page form adds empty square outlines inside
+text and a bordered prose section spanning two PDF pages. The shared editable
+converter now recognizes unambiguous squares within whitespace and complementary
+three-edge borders near adjacent page edges. Squares become inline outline images,
+not clickable controls; prose stays in normal paragraphs in one expanding table.
+Paragraph rows let Word paginate that table without moving the entire section.
+Marked squares, overlapping graphics and unmatched continuation paths stay guarded.
+
+**Passed:** 196 tests, source smoke, independent code and six-page visual review,
+native Word edit/save/reopen with two inline squares retained, and both modes of
+the earlier 40-file corpus (unchanged acceptance and all accepted DOCX parts).
+The new PDF converts to three pages in both modes with 26 fields, all four squares
+and its logo. Some wrapping/border rendering differs; one retained-mode word moves
+from the first page to the second. No pixel-identity claim. Original file unchanged.
+
+**Passed:** local portable build and relocation of both formats, EN/RU widgets,
+new synthetic inline-square/continuation smoke, 17 frozen modules equal source
+and 14 synthetic DOCX outputs equal source by every part.
+**Pending:** hosted clean-VM checks, publication/readback.
+The earlier installed-font alias conflict remains separate: real-file QA used
+fresh GDI/glyph verification of the owner's active original font faces, not a
+bypass in the app. No font installation, registry change or substitution occurred.
+Private evidence: `.private/rrs-2026-10-28`. No private documents/fonts are public.
+
+Independent read-only review requested `routing_reviewer` (gpt-6.1-sol/high),
+accepted by the runtime; backend identity not independently confirmed. No fallback.
+Lead is sole writer. Other Word versions/printing were not run; UI layout unchanged.
+
 ## 1.3.2 — editable blank spacing and date rules (published)
 
 2026-10-26: the shared editable converter uses measured PDF field edges instead
