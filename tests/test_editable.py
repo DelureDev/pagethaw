@@ -93,6 +93,39 @@ def test_retained_lines_round_available_page_width_outward(tmp_path, face):
     assert sec.page_width.pt-sec.right_margin.pt >= bounds[2]+.075
 
 
+@pytest.mark.parametrize('keep_lines', [False, True])
+@pytest.mark.parametrize('wide_x', [30, 112])
+def test_heading_widening_below_logo_keeps_reading_order(tmp_path, face, keep_lines, wide_x):
+    bold = read_font(Path('C:/Windows/Fonts/arialbd.ttf'), installed=True)
+    path = tmp_path/'wide-heading.pdf'
+    with pymupdf.open() as pdf:
+        page = pdf.new_page(width=500, height=700)
+        page.insert_font(fontname='regular', fontfile=face.path)
+        page.insert_font(fontname='bold', fontfile=bold.path)
+        page.draw_circle((90,40),20,color=(0,0,0),fill=(0,0,0))
+        # Second row is below the logo but extends left of its column. Third
+        # row falls within the old logo-neighbor search window again.
+        for x,y,text in [(280,40,'FIRST HEADING'),(wide_x,73,'SECOND WIDE HEADING'),(280,85,'THIRD HEADING')]:
+            page.insert_text((x,y),text,fontname='bold',fontsize=10)
+        page.insert_text((30,120),'Body text follows the complete heading.',fontname='regular',fontsize=10)
+        pdf.save(path)
+    info=inspect_pdf(path)
+    mapping={name:bold if 'Bold' in name else face for name in info.fonts}
+    target=tmp_path/'wide-heading.docx'
+    result=convert_pdf(info,target,mapping,mode='editable',keep_line_breaks=keep_lines)
+    assert result['content_check']=='passed'
+    doc=Document(target)
+    text=''.join(t.text or '' for t in doc.element.iter(qn('w:t')))
+    assert text.index('FIRST HEADING') < text.index('SECOND WIDE HEADING') < text.index('THIRD HEADING') < text.index('Body text')
+    assert len(doc.tables)==1
+    assert 'FIRST HEADING' in doc.tables[0].cell(0,1).text
+    assert 'THIRD HEADING' not in doc.tables[0].cell(0,1).text
+    assert any('SECOND WIDE HEADING' in p.text for p in doc.paragraphs)
+    assert not list(doc.element.iter(qn('w:txbxContent')))
+    assert not list(doc.element.iter(qn('w:framePr')))
+    assert not list(doc.element.iter(qn('w:trHeight')))
+
+
 def test_right_logo_shares_header_with_heading_and_subtitle(tmp_path, face):
     bold = read_font(Path('C:/Windows/Fonts/arialbd.ttf'), installed=True)
     path = tmp_path/'header.pdf'

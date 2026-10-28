@@ -1,5 +1,16 @@
 # Release verification
 
+## 1.3.5 — long heading order (candidate)
+
+- **Passed:** 208 tests and source smoke; both editable modes and two widening
+  positions beneath the logo. Source order/emphasis verification remains intact.
+- **Passed:** independent code review and all four native Word comparison pages.
+  The supplied form stays two pages, with 24 fields and ordinary editable text.
+- **Passed:** 42-file regression corpus per mode, unchanged acceptance and all
+  accepted DOCX parts equal 1.3.4. No visible clipping/overlap in the new form.
+- **Pending:** package, portable/hosted, integration and release readback gates.
+- **Limits:** no pixel-identity claim; fonts required; other Word/print not run.
+
 ## 1.3.4 — form borders and rectangular highlights (published)
 
 - **Passed:** 204 tests; character-level/multiline highlight conservation,

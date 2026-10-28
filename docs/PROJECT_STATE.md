@@ -1,5 +1,28 @@
 # Project state
 
+## 1.3.5 — long headings beneath logos (candidate)
+
+2026-10-28: the shared editable converter now takes only a contiguous prefix of
+heading lines beside a left-hand logo. A wider line underneath the logo ends the
+prefix; later narrow lines remain in ordinary body paragraphs in source order.
+Previously a later narrow line could be pulled ahead of that wider line, correctly
+triggering the text/order verification gate. The gate and typography checks are
+unchanged. No document names, text or font-specific overrides were added.
+
+**Passed:** 208 tests, source portable smoke, independent code review and all four
+native Word comparison pages of the reported form (both editable modes). It stays
+two pages with 24 fields and normal editable text; no clipping/overlap observed.
+**Passed:** previous 40-file corpus plus the two recently supported forms in each
+mode: acceptance unchanged (21 accepted / 21 rejected), and all accepted DOCX
+parts identical to 1.3.4. Original inputs unchanged. Private evidence:
+`.private/lift-2026-10-28`.
+**Pending:** build/package audit, both portable relocations, hosted fresh-VM,
+integrated tests, public readback and delivery. Historical gates are not evidence.
+**Limits:** matching fonts required; some spacing/wrapping differs. Other Word
+versions and physical printing not run. No font installation or substitution.
+Read-only independent reviewer reused routing_reviewer (requested Sol high,
+runtime accepted role; backend identity not independently confirmed). Lead writer.
+
 ## 1.3.4 — form borders and rectangular text highlights (published)
 
 2026-10-28: preserve source border thickness/color in bordered prose forms. A

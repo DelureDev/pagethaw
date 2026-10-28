@@ -58,6 +58,7 @@ try {
         if ($report.field_geometry -ne 'passed') { throw "$kind field geometry verification failed." }
         if ($report.inline_squares_and_continuations -ne 'passed') { throw "$kind inline forms verification failed." }
         if ($report.highlights_and_border_styles -ne 'passed') { throw "$kind highlight/border verification failed." }
+        if ($report.contiguous_heading_order -ne 'passed') { throw "$kind heading order verification failed." }
         if ($report.status -ne 'passed' -or -not $report.frozen -or $report.bundled_runtime -ne 'passed' -or $report.gui -ne 'passed' -or $report.retained_lines -ne 'passed' -or $report.native_footnotes -ne 'passed' -or $report.touching_blank_border -ne 'passed') { throw "$kind runtime verification failed." }
         $checks[$kind] = $report
     }

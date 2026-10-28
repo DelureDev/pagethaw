@@ -186,6 +186,25 @@ def run(folder, compare=False):
     shaded_runs = highlight_doc.element.xpath('.//w:r[w:rPr/w:shd[@w:fill="FFCC99"]]')
     assert ''.join(t.text for r in shaded_runs for t in r.iter(qn('w:t'))) == 'Highlighted'
     assert not list(highlight_doc.element.iter(qn('w:txbxContent')))
+    bold_face = next(f for f in faces if f.family == 'Arial' and f.bold and not f.italic)
+    header_source = folder/'synthetic-heading.pdf'
+    with pymupdf.open() as pdf:
+        page = pdf.new_page(width=500, height=700)
+        page.insert_font(fontname='regular', fontfile=face.path)
+        page.insert_font(fontname='bold', fontfile=bold_face.path)
+        page.draw_circle((90,40),20,color=(0,0,0),fill=(0,0,0))
+        for x,y,text in [(280,40,'FIRST HEADING'),(112,73,'SECOND WIDE HEADING'),(280,85,'THIRD HEADING')]:
+            page.insert_text((x,y),text,fontname='bold',fontsize=10)
+        page.insert_text((30,120),'Body follows the heading.',fontname='regular',fontsize=10)
+        pdf.save(header_source)
+    header_info = inspect_pdf(header_source)
+    header_records = convert_batch([header_info], folder/'heading',
+                                  {n: bold_face if 'Bold' in n else face for n in header_info.fonts}, mode='editable')
+    assert header_records[0].get('content_check') == 'passed', header_records
+    header_doc = Document(folder/'heading'/header_records[0]['output'])
+    header_text = ''.join(t.text or '' for t in header_doc.element.iter(qn('w:t')))
+    assert header_text.index('FIRST HEADING') < header_text.index('SECOND WIDE HEADING') < header_text.index('THIRD HEADING') < header_text.index('Body follows')
+    assert len(header_doc.tables) == 1 and 'THIRD HEADING' not in header_doc.tables[0].cell(0,1).text
     comparison = 'not run'
     if compare:
         from .word_review import review_batch
@@ -240,5 +259,6 @@ def run(folder, compare=False):
         'native_footnotes': 'passed', 'touching_blank_border': 'passed', 'field_geometry': 'passed',
         'inline_squares_and_continuations': 'passed',
         'highlights_and_border_styles': 'passed',
+        'contiguous_heading_order': 'passed',
         'comparison': comparison}, indent=2), encoding='utf-8')
     return records

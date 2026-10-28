@@ -790,6 +790,17 @@ def _build_document(pdf, mapping, dpi, cancel, keep_line_breaks, highlights):
         for graphic in graphics:
             title = [l for l in lines if l.bbox.x0 > graphic.x1+5 and
                      l.bbox.y0 < graphic.y1+20 and l.bbox.y1 > graphic.y0]
+            # A long heading can widen below the logo, then become narrow again.
+            # Only its contiguous prefix belongs beside the logo. Pulling a
+            # later narrow line into that cell would jump over the wider line.
+            if title:
+                candidates = {id(l) for l in title}
+                prefix = []
+                for line in lines[lines.index(title[0]):]:
+                    if id(line) not in candidates:
+                        break
+                    prefix.append(line)
+                title = prefix
             side = 'left'
             if not title and graphic.x0 > page.rect.width/2:
                 adjacent = [l for l in lines if l.bbox.x1 < graphic.x0-5 and
