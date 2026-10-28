@@ -1,6 +1,6 @@
 # Release verification
 
-## 1.3.5 — long heading order (candidate)
+## 1.3.5 — long heading order (published)
 
 - **Passed:** 208 tests and source smoke; both editable modes and two widening
   positions beneath the logo. Source order/emphasis verification remains intact.
@@ -8,8 +8,22 @@
   The supplied form stays two pages, with 24 fields and ordinary editable text.
 - **Passed:** 42-file regression corpus per mode, unchanged acceptance and all
   accepted DOCX parts equal 1.3.4. No visible clipping/overlap in the new form.
-- **Pending:** package, portable/hosted, integration and release readback gates.
+- **Passed:** package audit and both portable formats relocated with EN/RU checks;
+  18 frozen modules and 18 synthetic DOCX files match source.
+- **Passed:** [Windows checks](https://github.com/DelureDev/pagethaw/actions/runs/40693567348)
+  and [build/fresh-VM](https://github.com/DelureDev/pagethaw/actions/runs/40693604039),
+  source `e36413b61109421fc33ad92f1fc7a31b16d36357`. Hosted evidence downloaded;
+  208 tests passed after integration.
+- **Passed:** published local assets downloaded and compared with tested bytes and
+  checksums. Verified EXE and corrected Word document delivered. The separate
+  hosted binary was not locally relocated.
 - **Limits:** no pixel-identity claim; fonts required; other Word/print not run.
+
+
+Published [1.3.5](https://github.com/DelureDev/pagethaw/releases/tag/v1.3.5) assets:
+
+- PageThaw-1.3.5-windows-x64.exe (46,784,508 bytes): `693a6db3e68cc671ba6aa1f84970b57897d9b038c5ba3be4d56f023f0a83c3df`
+- PageThaw-1.3.5-windows-x64.zip (47,068,224 bytes): `ef95c7adc2748a01b46e5f419fa68230d99338ca3db874d821a6b182d94612d1`
 
 ## 1.3.4 — form borders and rectangular highlights (published)
 

@@ -1,6 +1,6 @@
 # Project state
 
-## 1.3.5 — long headings beneath logos (candidate)
+## 1.3.5 — long headings beneath logos (published)
 
 2026-10-28: the shared editable converter now takes only a contiguous prefix of
 heading lines beside a left-hand logo. A wider line underneath the logo ends the
@@ -16,8 +16,16 @@ two pages with 24 fields and normal editable text; no clipping/overlap observed.
 mode: acceptance unchanged (21 accepted / 21 rejected), and all accepted DOCX
 parts identical to 1.3.4. Original inputs unchanged. Private evidence:
 `.private/lift-2026-10-28`.
-**Pending:** build/package audit, both portable relocations, hosted fresh-VM,
-integrated tests, public readback and delivery. Historical gates are not evidence.
+**Passed:** build/package audit, both portable relocations, EN/RU controls,
+18 frozen modules and 18 synthetic DOCX files equal the tested source.
+Hosted Windows checks `40693567348` and build/fresh-VM `40693604039` passed at
+`e36413b61109421fc33ad92f1fc7a31b16d36357`; downloaded hosted evidence confirms
+new heading-order smoke. All 208 tests passed after main integration.
+[1.3.5](https://github.com/DelureDev/pagethaw/releases/tag/v1.3.5) publishes the
+tested local build. Public EXE/ZIP/checksums downloaded again and match local
+bytes/hashes. The separate hosted binary was not locally relocated. Verified EXE
+is in Downloads; corrected LIFT DOCX is in `PageThaw-output/test-1.3.5`.
+Private `release-verification.json` records exact hashes and readback. Complete.
 **Limits:** matching fonts required; some spacing/wrapping differs. Other Word
 versions and physical printing not run. No font installation or substitution.
 Read-only independent reviewer reused routing_reviewer (requested Sol high,
