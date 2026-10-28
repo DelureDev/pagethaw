@@ -1,6 +1,6 @@
 # Project state
 
-## 1.3.4 — form borders and rectangular text highlights (candidate)
+## 1.3.4 — form borders and rectangular text highlights (published)
 
 2026-10-28: preserve source border thickness/color in bordered prose forms. A
 continued table uses top/bottom borders only on its actual first/last cells,
@@ -13,7 +13,8 @@ The original PDF and the caller's in-memory annotations/trailer are unchanged.
 
 **Passed:** 204 tests plus the final source-preservation focused checks; source
 portable smoke includes highlights and border styles. Independent code review and
-all ten native Word pages of the two reported forms in both editable modes passed.
+all 16 native Word comparison pages (two reported forms plus a prior reference,
+both editable modes) passed.
 The forms remain three and two pages, respectively. Text/order/emphasis pass;
 no frames, positioned text or fixed row heights. Native Word edit/save/reopen
 checks passed for expanding table text and insertion inside highlighted text.
@@ -21,8 +22,16 @@ checks passed for expanding table text and insertion inside highlighted text.
 Twelve accepted files change only border size/color XML; seven match every part.
 No private PDF/font is public. Evidence: `.private/borders-relatox-2026-10-28`.
 
-**Pending:** portable build/relocation, hosted fresh-VM gates, integrated tests,
-public release readback and delivery. Do not infer these from 1.3.3 results.
+**Passed:** local build/package audit, relocation of both portable formats,
+EN/RU controls, 18 frozen modules and 16 synthetic DOCX files equal source.
+Hosted Windows checks `40689228330` and build/fresh-VM `40689269587` passed at
+`a11a872f0f2fb1fd20c055b02e7b92ded697f43d`; hosted evidence was downloaded and
+verified. All 204 tests passed after integration into main.
+[1.3.4](https://github.com/DelureDev/pagethaw/releases/tag/v1.3.4) publishes the
+tested local build. Public assets were downloaded again and match local bytes and
+checksums. The separate hosted binary was not locally relocated. Verified EXE is
+in Downloads; both corrected DOCX files are in `PageThaw-output/test-1.3.4`.
+Hashes and readback: private `release-verification.json`. Original files unchanged.
 **Limits:** custom/rounded/skewed/overlapping highlights remain unsupported;
 shading preserves the plain visible highlight, not PDF annotation comments.
 Matching fonts are still required; installed font conflicts are unchanged.

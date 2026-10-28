@@ -1,20 +1,36 @@
 # Release verification
 
-## 1.3.4 — form borders and rectangular highlights (candidate)
+## 1.3.4 — form borders and rectangular highlights (published)
 
 - **Passed:** 204 tests; character-level/multiline highlight conservation,
   source preservation, ordinary editable paragraphs, custom blend/appearance
   rejection, continued open borders and source line thickness/color.
 - **Passed:** source smoke with new highlight/border assertions; native Word
   multiline table edit and highlighted-text edit, each saved and reopened.
-- **Passed:** independent code review and all ten native Word comparison pages
-  across both supplied forms and both editable modes. Three/two pages retained.
+- **Passed:** independent code review and all 16 native Word comparison pages
+  across both supplied forms and a prior reference, both editable modes. Supplied
+  forms remain three/two pages.
 - **Passed:** previous 40-file corpus per mode retains 19 accepted / 21 rejected;
   twelve accepted files change only border style XML and seven are identical.
-- **Pending:** package/relocation, hosted VM, integrated tests and release readback.
+- **Passed:** package audit and both portable formats relocated; EN/RU controls,
+  bundled runtime, repeated conversion and DOCX-only output. All 18 frozen Python
+  modules and 16 synthetic DOCX files match the tested source.
+- **Passed:** [Windows checks](https://github.com/DelureDev/pagethaw/actions/runs/40689228330)
+  and [build/fresh-VM](https://github.com/DelureDev/pagethaw/actions/runs/40689269587),
+  source `a11a872f0f2fb1fd20c055b02e7b92ded697f43d`. Hosted evidence downloaded and
+  verified; 204 tests passed after main integration.
+- **Passed:** published local assets downloaded again and match tested bytes and
+  checksums. The separately hosted build was not locally relocated. Corrected DOCX
+  copies and verified EXE delivered without replacing original files.
 - **Limits:** only proven plain rectangular highlights; other visual effects stay
   guarded. Fonts are not installed/embedded by this change. Wrapping may differ;
   no claim of pixel identity or other Word-version/physical-print verification.
+
+
+Published [1.3.4](https://github.com/DelureDev/pagethaw/releases/tag/v1.3.4) assets:
+
+- PageThaw-1.3.4-windows-x64.exe (46,782,283 bytes): `4c7966289f169aa0d6b3b2b5d22d4a07611f53ce38261914bf21d2c5bcaca06a`
+- PageThaw-1.3.4-windows-x64.zip (47,064,750 bytes): `cc99349d4a982bb0741af5386e2ae1e8819fca30d0e655a6557017c161aafd82`
 
 ## 1.3.3 — inline squares and continued bordered prose
 
